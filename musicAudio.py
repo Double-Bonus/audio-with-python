@@ -13,6 +13,7 @@ import tensorflow as tf
 from tensorflow import keras
 from keras import layers, models
 from keras.models import Sequential
+from keras.layers import Dense, Dropout
 
 
 
@@ -72,25 +73,23 @@ def plot_validation(history):
     pd.DataFrame(history.history).plot(figsize=(12,6))
     plt.show()
 
-# df = pd.read_csv("/Data/features_30_sec.csv")
-# FIX THIS
-df = pd.read_csv("D:/Backup/Desktop/I/KTU/7Semestras/Intelektika/Projektas/music_genre_classf/Data/features_3_sec.csv")
+df = pd.read_csv('Data\\features_3_sec.csv')
 
-
-# pd.read_csv("../data_folder/data.csv")
 print(df.head()) # gives first n lines of data 
 
 print(df.shape)
 df = df.drop(labels='filename', axis=1)
 
 
+audio_recording = ('Data\\genres_original\\country\\country.00050.wav')
 
-audio_recording = ("D:/Backup/Desktop/I/KTU/7Semestras/Intelektika/Projektas/music_genre_classf/Data/genres_original/country/country.00050.wav")
 data, sr = librosa.load(audio_recording)
 print(type(data), type(sr))
 
 librosa.load(audio_recording, sr=45600)
 
+# draws our audio file in differerent formats
+#draw_data()
 
 class_list = df.iloc[:,-1]
 convertor = LabelEncoder()
@@ -104,28 +103,22 @@ X = fit.fit_transform(np.array(df.iloc[:,:-1], dtype=float)) # kodel float ne np
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33)
 
 
-model = models.Sequential([
-    layers.Dense(512, activation='relu', input_shape=(X_train.shape[1],)),
-    layers.Dropout(0.2),
+model = Sequential()
+model.add(Dense(units=512, activation='relu', input_shape=(X_train.shape[1],)))
+model.add(Dropout(0.2))
+model.add(Dense(units=256, activation='relu'))
+model.add(Dropout(0.2))
+model.add(Dense(units=128, activation='relu'))
+model.add(Dropout(0.2))
+model.add(Dense(units=64, activation='relu'))
+model.add(Dropout(0.2))
+model.add(Dense(units=10, activation='softmax'))
 
-    layers.Dense(256, activation='relu'),
-    layers.Dropout(0.2),
-
-    layers.Dense(128, activation='relu'),
-    layers.Dropout(0.2),
-
-    layers.Dense(64, activation='relu'),
-    layers.Dropout(0.2),
-
-    layers.Dense(10, activation='softmax')
-])
 print(model.summary())
-model_history = train_model(model=model, epochs=300, optimizer='adam')
+model_history = train_model(model=model, epochs=200, optimizer='adam')
 
 test_loss, test_acc = model.evaluate(X_test, y_test, batch_size=128)
 print("The test los is :",  test_loss)
 print("\nThe best acc is: ", test_acc*100)
-
-
 
 plot_validation(model_history)
