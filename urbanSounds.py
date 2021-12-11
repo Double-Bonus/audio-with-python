@@ -116,13 +116,17 @@ def spectrogram_image(y, sr, out, hop_length, n_mels):
     img = 255-img # invert. make black==more energy
 
     # save as PNG
-    skimage.io.imsave(out, img)
+    if not os.path.exists("img_save"):
+        os.makedirs("img_save")
+    
+    skimage.io.imsave(("img_save//" + out), img)
     
     
 '''Saves data sound files as png pictures.'''
 def parser():
     # Function to load files and extract features
-    for i in range(20):
+    # for i in range(20):
+    for i in range(DATA_SAMPLES_CNT):
         file_name = BASE_PATH  + "//audio//fold" + str(df["fold"][i]) + '//' + df["slice_file_name"][i]
         # Here kaiser_fast is a technique used for faster extraction
         y, sr = librosa.load(file_name, res_type='kaiser_fast') 
@@ -170,7 +174,10 @@ if DEBUG_MODE:
 
 # store y value to cnn
 label = []
-parser()
+
+# suppose existanse of images folder shows that there is data
+if not os.path.exists("img_save"):
+    parser()
 
 
 print('Done!')
