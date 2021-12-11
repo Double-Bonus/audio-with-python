@@ -35,6 +35,7 @@ import librosa
 import librosa.display
 import glob 
 import skimage.io
+import torch
 
 def show_basic_data():
     dat1, sampling_rate1 = librosa.load(BASE_PATH + "//audio//fold5//100032-3-0-0.wav")
@@ -74,15 +75,37 @@ def show_diff_classes():
         plt.title(cla[i])
     plt.show()
 
+#------------------ Normal work -----------------------
+
+# Pad (or truncate) the signal to a fixed length 'max_ms' in milliseconds
+def pad_trunc(sig, sr, max_ms):
+  num_rows = sig.shape
+  sig_len = librosa.get_duration(y=sig, sr=sr)
+  max_len = sr//1000 * max_ms
+  if (sig_len > max_len):
+    # Truncate the signal to the given length
+    sig = sig[:,:max_len]
+  elif (sig_len < max_len):
+    # Length of padding to add at the beginning and end of the signal
+    pad_begin_len = np.random.randint(0, max_len - sig_len)
+    pad_end_len = max_len - sig_len - pad_begin_len
+    # Pad with 0s
+    pad_begin = torch.zeros((num_rows, pad_begin_len))
+    pad_end = torch.zeros((num_rows, pad_end_len))
+    sig = torch.cat((pad_begin, sig, pad_end), 1)
+    
+  return (sig, sr)
+
+
 # why ????
 def scale_minmax(X, min=0.0, max=1.0):
     X_std = (X - X.min()) / (X.max() - X.min())
     X_scaled = X_std * (max - min) + min
     return X_scaled
 
-def spectrogram_image(y, sr, out, n_mels):
+def spectrogram_image(y, sr, out, hop_length, n_mels):
     # use log-melspectrogram
-    mels = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=n_mels)
+    mels = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=n_mels, n_fft=hop_length*2, hop_length=hop_length)
     
     
     mels = np.log(mels + 1e-9) # add small number to avoid log(0)
@@ -104,9 +127,29 @@ def parser():
         # Here kaiser_fast is a technique used for faster extraction
         y, sr = librosa.load(file_name, res_type='kaiser_fast') 
         
+        
+        # y, sr = pad_trunc(y, sr, 4000)
+        
         out = 'out' + str(i) + '.png' # TODO move out of root dir!!!!!!!!!!!!!!!!
+        n_mels = 64 # number of bins in spectrogram. Height of image
+        
+        
+        hop_length = 512 # number of samples per time-step in spectrogram
         n_mels = 128 # number of bins in spectrogram. Height of image
-        spectrogram_image(y, sr, out, n_mels)
+        time_steps = 64 # number of time-steps. Width of image
+        
+        # window(size) = 
+        
+        # sr * 4 = size!!!
+        # 22050 * 4 = 88200
+        y = librosa.util.utils.fix_length(y, 88200)  ## suppose it works????? It just adds white space!!!!
+        
+        
+        start_sample = 0 # starting at beginning
+        length_samples = time_steps*hop_length
+        window = y[start_sample:start_sample+length_samples]
+        
+        spectrogram_image(y=window, sr=sr, out=out, hop_length=hop_length, n_mels=n_mels)
 
         label.append(df["classID"][i])
 
