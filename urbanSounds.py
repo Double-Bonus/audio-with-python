@@ -2,6 +2,7 @@
 
 import pandas as pd
 import numpy as np
+from tensorflow.python.keras import callbacks
 
 pd.plotting.register_matplotlib_converters()
 import matplotlib.pyplot as plt
@@ -189,22 +190,27 @@ def train_CNN(x_train, y_train, x_test, y_test):
     
     
     model = Sequential()
-    model.add(Conv2D(filters=128, kernel_size=(3,3), activation='relu', input_shape = (128, 65, 1))) # siaip nespalvoti turetu buti!!!!
+    model.add(Conv2D(filters=128, kernel_size=(3,3), activation='tanh', input_shape = (128, 65, 1))) # siaip nespalvoti turetu buti!!!!
+    model.add(MaxPooling2D((2, 2)))
     model.add(Conv2D(filters=64, kernel_size=(3,3), activation='relu' ))
     model.add(MaxPooling2D((2, 2)))
+    model.add(Dropout(0.1))
     model.add(Conv2D(filters=128, kernel_size=(3,3), activation='relu' ))
     model.add(MaxPooling2D((2, 2)))
-    # model.add(Conv2D(filters=128, kernel_size=(3,3), activation='relu' ))
-    # model.add(Conv2D(filters=32, kernel_size=(3,3), activation='relu' ))
-    # model.add(MaxPooling2D((2, 2)))
+    model.add(Dropout(0.2))
+    model.add(Conv2D(filters=128, kernel_size=(3,3), activation='relu' ))
+    model.add(MaxPooling2D((2, 2)))
     model.add(Flatten())
-    model.add(Dense(units=CLASSES_CNT))
-    model.compile(optimizer='adam', loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True), metrics=['accuracy'])
+    model.add(Dense(1024, activation = "tanh"))
+    model.add(Dense(units=CLASSES_CNT, activation = "softmax"))
+    model.compile(optimizer='adam', loss=keras.losses.SparseCategoricalCrossentropy(), metrics=['accuracy'])
     model.summary()
 
-    hist = model.fit(x_train, y_train, batch_size=64, epochs=3, verbose=1, validation_data=(x_test, y_test))
-    
-    model.save('urban_model.h5')
+    earlystopper = keras.callbacks.EarlyStopping(patience=7, verbose=1, monitor='val_accuracy')
+    checkpointer = keras.callbacks.ModelCheckpoint('models\\urban_model.h5', verbose=1, save_best_only=True)
+
+    hist = model.fit(x_train, y_train, batch_size=64, epochs=80, verbose=1, validation_data=(x_test, y_test), callbacks = [earlystopper, checkpointer])
+
     
     plt.subplot(121)
     plt.plot(hist.history['accuracy'], 'r')
