@@ -1,40 +1,37 @@
-# Basic Libraries
+# Basic implementation of UrbanSound8K dataset clasfication
+# For starting acheved ~60% val. acc.
 
+# Based on: https://towardsdatascience.com/audio-deep-learning-made-simple-sound-classification-step-by-step-cebc936bbe5
+
+''' TODO:
+   - Properlly resize audio samples
+   - Add Time Shift (optional?) https://towardsdatascience.com/audio-deep-learning-made-simple-part-3-data-preparation-and-augmentation-24c6e1f6b52
+   - Update model structure to get better results
+   - Check model model fit cb early stoper api
+   - use openCV or skimage not both!
+'''
+
+# Basic Libraries
 import pandas as pd
 import numpy as np
 from tensorflow.python.keras import callbacks
 
 pd.plotting.register_matplotlib_converters()
 import matplotlib.pyplot as plt
-# matplotlib inline
 import seaborn as sns
-
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report
-from sklearn.model_selection import GridSearchCV
-
-from sklearn.preprocessing import MinMaxScaler
-
 
 # Libraries for Classification and building Models
 from tensorflow import keras
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Conv2D, Flatten, Dense, MaxPooling2D, Flatten, Dropout
-from tensorflow.keras.utils import to_categorical 
-
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.svm import SVC
 
 
 # Project Specific Libraries
-
 import os
 import librosa
 import librosa.display
-import glob 
 import skimage.io
 import torch
-
 from datetime import datetime
 import cv2
 
@@ -107,8 +104,6 @@ def scale_minmax(X, min=0.0, max=1.0):
 def spectrogram_image(y, sr, out, hop_length, n_mels):
     # use log-melspectrogram
     mels = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=n_mels, n_fft=hop_length*2, hop_length=hop_length)
-    
-    
     mels = np.log(mels + 1e-9) # add small number to avoid log(0)
 
     # min-max scale to fit inside 8-bit range
@@ -123,47 +118,36 @@ def spectrogram_image(y, sr, out, hop_length, n_mels):
     skimage.io.imsave(("img_save//" + out), img)
     
     
-'''Saves data sound files as png pictures.'''
+'''Saves spectograms data from sound files as png pictures'''
 def parser():
     # Function to load files and extract features
-    # for i in range(20):
     for i in range(DATA_SAMPLES_CNT):
         file_name = BASE_PATH  + "//audio//fold" + str(df["fold"][i]) + '//' + df["slice_file_name"][i]
         # Here kaiser_fast is a technique used for faster extraction
         y, sr = librosa.load(file_name, res_type='kaiser_fast') 
         
+        out = 'out' + str(i) + '.png'
+        n_mels = 64        # number of bins in spectrogram. Height of image
+        hop_length = 512   # number of samples per time-step in spectrogram
+        n_mels = 128       # number of bins in spectrogram. Height of image
+        time_steps = 64    # number of time-steps. Width of image
         
-        # y, sr = pad_trunc(y, sr, 4000)
-        
-        out = 'out' + str(i) + '.png' # TODO move out of root dir!!!!!!!!!!!!!!!!
-        n_mels = 64 # number of bins in spectrogram. Height of image
-        
-        
-        hop_length = 512 # number of samples per time-step in spectrogram
-        n_mels = 128 # number of bins in spectrogram. Height of image
-        time_steps = 64 # number of time-steps. Width of image
-        
-        # window(size) = 
         
         # sr * 4 = size!!!
         # 22050 * 4 = 88200
         y = librosa.util.utils.fix_length(y, 88200)  ## suppose it works????? It just adds white space!!!!
-        
+        # y, sr = pad_trunc(y, sr, 4000)
         
         start_sample = 0 # starting at beginning
-        length_samples = time_steps*hop_length
+        length_samples = time_steps * hop_length
         window = y[start_sample:start_sample+length_samples]
         
         spectrogram_image(y=window, sr=sr, out=out, hop_length=hop_length, n_mels=n_mels)
 
-        label.append(df["classID"][i])
-
-
+'''Loads images to ram from folder. Also returns class_name for y values'''
 def load_spectograms():
-    img_data_array = np.zeros((8732, 128, 65))
-    # img_data_array = []
-    # class_name = []
-    class_name = np.zeros((8732, 1))
+    img_data_array = np.zeros((DATA_SAMPLES_CNT, 128, 65))
+    class_name = np.zeros((DATA_SAMPLES_CNT, 1))
     
     cla = np.array(df["classID"]) # TODO FIX suppose its global
 
@@ -175,61 +159,57 @@ def load_spectograms():
         image = image.astype('float32')
         image /= 255
         img_data_array[i] = image 
-        class_name[i] = cla[i] 
-        # img_data_array.append(image)
-        #class_name.append(cla[i])   
+        class_name[i] = cla[i]  
     return img_data_array, class_name
 
+def draw_model_results(model_history):
+    plt.subplot(121)
+    plt.plot(model_history.history['accuracy'], 'r')
+    plt.plot(model_history.history['val_accuracy'], 'b')
+    plt.ylabel('accuracy, r - train, b - val')
+    plt.xlabel('epoch')
+    plt.grid(b=True)
+
+    plt.subplot(122)
+    plt.plot(model_history.history['loss'], 'r')
+    plt.plot(model_history.history['val_loss'], 'b')
+    plt.ylabel('Loss, r - train, b - val')
+    plt.xlabel('epoch')
+    plt.grid(b=True)
+    plt.show()
 
 def train_CNN(x_train, y_train, x_test, y_test):
-    
     
     x_train = x_train.reshape(DATA_SAMPLES_CNT - TEST_SAMPLES_CNT, 128, 65, 1)
     x_test = x_test.reshape(TEST_SAMPLES_CNT, 128, 65, 1)
     
-    
-    
     model = Sequential()
-    model.add(Conv2D(filters=128, kernel_size=(3,3), activation='tanh', input_shape = (128, 65, 1))) # siaip nespalvoti turetu buti!!!!
+    model.add(Conv2D(filters=256, kernel_size=(3,3), activation='tanh', input_shape = (128, 65, 1)))
     model.add(MaxPooling2D((2, 2)))
+    model.add(Dropout(0.1))     
+    model.add(Conv2D(filters=128, kernel_size=(3,3), activation='relu' ))
+    model.add(MaxPooling2D((2, 2)))
+    model.add(Dropout(0.2))    
+    model.add(Conv2D(filters=128, kernel_size=(3,3), activation='relu' ))
+    model.add(MaxPooling2D((2, 2)))
+    model.add(Dropout(0.2))    
     model.add(Conv2D(filters=64, kernel_size=(3,3), activation='relu' ))
-    model.add(MaxPooling2D((2, 2)))
-    model.add(Dropout(0.1))
-    model.add(Conv2D(filters=128, kernel_size=(3,3), activation='relu' ))
-    model.add(MaxPooling2D((2, 2)))
-    model.add(Dropout(0.2))
-    model.add(Conv2D(filters=128, kernel_size=(3,3), activation='relu' ))
     model.add(MaxPooling2D((2, 2)))
     model.add(Flatten())
     model.add(Dense(1024, activation = "tanh"))
     model.add(Dense(units=CLASSES_CNT, activation = "softmax"))
+    
     model.compile(optimizer='adam', loss=keras.losses.SparseCategoricalCrossentropy(), metrics=['accuracy'])
     model.summary()
 
     earlystopper = keras.callbacks.EarlyStopping(patience=7, verbose=1, monitor='val_accuracy')
     checkpointer = keras.callbacks.ModelCheckpoint('models\\urban_model.h5', verbose=1, save_best_only=True)
 
-    hist = model.fit(x_train, y_train, batch_size=64, epochs=80, verbose=1, validation_data=(x_test, y_test), callbacks = [earlystopper, checkpointer])
+    hist = model.fit(x_train, y_train, batch_size=64, epochs=3, verbose=1, validation_data=(x_test, y_test), callbacks = [earlystopper, checkpointer])
+    draw_model_results(hist)
 
     
-    plt.subplot(121)
-    plt.plot(hist.history['accuracy'], 'r')
-    plt.plot(hist.history['val_accuracy'], 'b')
-    plt.ylabel('accuracy, r - train, b - val')
-    plt.xlabel('epoch')
-    plt.grid(b=True)
-
-    plt.subplot(122)
-    plt.plot(hist.history['loss'], 'r')
-    plt.plot(hist.history['val_loss'], 'b')
-    plt.ylabel('Loss, r - train, b - val')
-    plt.xlabel('epoch')
-    plt.grid(b=True)
-    plt.show()
-
-
-
-
+# ----------------------- MAIN ------------------
 DEBUG_MODE = 0
 BASE_PATH = "Urband_sounds//UrbanSound8K"
 DATA_SAMPLES_CNT = 8732
@@ -243,23 +223,21 @@ if DEBUG_MODE:
     show_basic_data()
     show_diff_classes()
 
-# store y value to cnn
-label = []
 
 # suppose existanse of images folder shows that there is data
 if not os.path.exists("img_save"):
     parser()
 
 X_data, Y_data = load_spectograms()
-# print(X_data[1].shape) # (128, 65)
 
 # there is tensorflow api for this!!!!!
+# X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33)
+
 x_train = X_data[0:DATA_SAMPLES_CNT-TEST_SAMPLES_CNT]
 x_test = X_data[DATA_SAMPLES_CNT-TEST_SAMPLES_CNT:DATA_SAMPLES_CNT]
 
 y_train = Y_data[0 : DATA_SAMPLES_CNT-TEST_SAMPLES_CNT]
 y_test  = Y_data[DATA_SAMPLES_CNT-TEST_SAMPLES_CNT : DATA_SAMPLES_CNT]
-# X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33)
 
 print(x_train.shape)
 print(np.min(x_train), np.max(x_train))

@@ -1,3 +1,5 @@
 *.csv
 *.wav
 *.png
+
+models/
