@@ -15,17 +15,14 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.preprocessing import MinMaxScaler
 
 
-
 # Libraries for Classification and building Models
-
+from tensorflow import keras
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Conv2D, Flatten, Dense, MaxPool2D, Dropout
+from tensorflow.keras.layers import Conv2D, Flatten, Dense, MaxPooling2D, Flatten, Dropout
 from tensorflow.keras.utils import to_categorical 
 
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
-
-
 
 
 # Project Specific Libraries
@@ -36,6 +33,9 @@ import librosa.display
 import glob 
 import skimage.io
 import torch
+
+from datetime import datetime
+import cv2
 
 def show_basic_data():
     dat1, sampling_rate1 = librosa.load(BASE_PATH + "//audio//fold5//100032-3-0-0.wav")
@@ -158,12 +158,77 @@ def parser():
         label.append(df["classID"][i])
 
 
+def load_spectograms():
+    img_data_array = np.zeros((8732, 128, 65))
+    # img_data_array = []
+    # class_name = []
+    class_name = np.zeros((8732, 1))
+    
+    cla = np.array(df["classID"]) # TODO FIX suppose its global
+
+    for i in range(0, DATA_SAMPLES_CNT):
+        image_path = "img_save//" + "out" + str(i) + ".png"
+        image= cv2.imread(image_path, cv2.COLOR_BGR2RGB) # TODO tikrai toks color map???????
+        # image=cv2.resize(image, (IMG_HEIGHT, IMG_WIDTH),interpolation = cv2.INTER_AREA)
+        image = np.array(image)
+        image = image.astype('float32')
+        image /= 255
+        img_data_array[i] = image 
+        class_name[i] = cla[i] 
+        # img_data_array.append(image)
+        #class_name.append(cla[i])   
+    return img_data_array, class_name
+
+
+def train_CNN(x_train, y_train, x_test, y_test):
+    
+    
+    x_train = x_train.reshape(DATA_SAMPLES_CNT - TEST_SAMPLES_CNT, 128, 65, 1)
+    x_test = x_test.reshape(TEST_SAMPLES_CNT, 128, 65, 1)
+    
+    
+    
+    model = Sequential()
+    model.add(Conv2D(filters=128, kernel_size=(3,3), activation='relu', input_shape = (128, 65, 1))) # siaip nespalvoti turetu buti!!!!
+    model.add(Conv2D(filters=64, kernel_size=(3,3), activation='relu' ))
+    model.add(MaxPooling2D((2, 2)))
+    model.add(Conv2D(filters=128, kernel_size=(3,3), activation='relu' ))
+    model.add(MaxPooling2D((2, 2)))
+    # model.add(Conv2D(filters=128, kernel_size=(3,3), activation='relu' ))
+    # model.add(Conv2D(filters=32, kernel_size=(3,3), activation='relu' ))
+    # model.add(MaxPooling2D((2, 2)))
+    model.add(Flatten())
+    model.add(Dense(units=CLASSES_CNT))
+    model.compile(optimizer='adam', loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True), metrics=['accuracy'])
+    model.summary()
+
+    hist = model.fit(x_train, y_train, batch_size=64, epochs=3, verbose=1, validation_data=(x_test, y_test))
+    
+    model.save('urban_model.h5')
+    
+    plt.subplot(121)
+    plt.plot(hist.history['accuracy'], 'r')
+    plt.plot(hist.history['val_accuracy'], 'b')
+    plt.ylabel('accuracy, r - train, b - val')
+    plt.xlabel('epoch')
+    plt.grid(b=True)
+
+    plt.subplot(122)
+    plt.plot(hist.history['loss'], 'r')
+    plt.plot(hist.history['val_loss'], 'b')
+    plt.ylabel('Loss, r - train, b - val')
+    plt.xlabel('epoch')
+    plt.grid(b=True)
+    plt.show()
+
+
 
 
 DEBUG_MODE = 0
 BASE_PATH = "Urband_sounds//UrbanSound8K"
 DATA_SAMPLES_CNT = 8732
-
+CLASSES_CNT = 10
+TEST_SAMPLES_CNT = 2000
 
 df = pd.read_csv("Urband_sounds//UrbanSound8K//metadata//UrbanSound8K.csv")
 if DEBUG_MODE:
@@ -179,5 +244,25 @@ label = []
 if not os.path.exists("img_save"):
     parser()
 
+X_data, Y_data = load_spectograms()
+# print(X_data[1].shape) # (128, 65)
 
-print('Done!')
+# there is tensorflow api for this!!!!!
+x_train = X_data[0:DATA_SAMPLES_CNT-TEST_SAMPLES_CNT]
+x_test = X_data[DATA_SAMPLES_CNT-TEST_SAMPLES_CNT:DATA_SAMPLES_CNT]
+
+y_train = Y_data[0 : DATA_SAMPLES_CNT-TEST_SAMPLES_CNT]
+y_test  = Y_data[DATA_SAMPLES_CNT-TEST_SAMPLES_CNT : DATA_SAMPLES_CNT]
+# X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33)
+
+print(x_train.shape)
+print(np.min(x_train), np.max(x_train))
+print(y_train)
+
+
+train_CNN(x_train, y_train, x_test, y_test)
+
+
+now = datetime.now()
+current_time = now.strftime("%H:%M:%S")
+print("Done! at: ", current_time)
