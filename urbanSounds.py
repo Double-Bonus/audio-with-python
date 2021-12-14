@@ -1,13 +1,13 @@
-# Basic implementation of UrbanSound8K dataset clasfication
-# For starting acheved ~60% val. acc.
+# Basic implementation of UrbanSound8K dataset classification
+# For starting achieved ~60% val. acc.
 
 # Based on: https://towardsdatascience.com/audio-deep-learning-made-simple-sound-classification-step-by-step-cebc936bbe5
 
 ''' TODO:
-   - Properlly resize audio samples
+   - Properly resize audio samples
    - Add Time Shift (optional?) https://towardsdatascience.com/audio-deep-learning-made-simple-part-3-data-preparation-and-augmentation-24c6e1f6b52
    - Update model structure to get better results
-   - Check model model fit cb early stoper api
+   - Check model fit cb early stoper api
    - use openCV or skimage not both!
 '''
 
@@ -109,7 +109,7 @@ def spectrogram_image(y, sr, out, hop_length, n_mels):
     # min-max scale to fit inside 8-bit range
     img = scale_minmax(mels, 0, 255).astype(np.uint8)
     img = np.flip(img, axis=0) # put low frequencies at the bottom in image
-    img = 255-img # invert. make black==more energy
+    img = 255 - img            # invert. make black==more energy
 
     # save as PNG
     if not os.path.exists("img_save"):
@@ -119,18 +119,16 @@ def spectrogram_image(y, sr, out, hop_length, n_mels):
     
     
 '''Saves spectograms data from sound files as png pictures'''
-def parser():
-    # Function to load files and extract features
+def save_wav_to_png():
     for i in range(DATA_SAMPLES_CNT):
         file_name = BASE_PATH  + "//audio//fold" + str(df["fold"][i]) + '//' + df["slice_file_name"][i]
         # Here kaiser_fast is a technique used for faster extraction
         y, sr = librosa.load(file_name, res_type='kaiser_fast') 
         
-        out = 'out' + str(i) + '.png'
-        n_mels = 64        # number of bins in spectrogram. Height of image
-        hop_length = 512   # number of samples per time-step in spectrogram
-        n_mels = 128       # number of bins in spectrogram. Height of image
-        time_steps = 64    # number of time-steps. Width of image
+        out = 'out' + str(i+1) + "_" + str(df["class"][i]) + '.png'
+        hop_length = 512           # number of samples per time-step in spectrogram
+        n_mels = IMG_HEIGHT        # number of bins in spectrogram. Height of image
+        time_steps = IMG_WIDTH - 1 # number of time-steps. Width of image (TODO FIX it add 1 px to width!!)
         
         
         # sr * 4 = size!!!
@@ -146,13 +144,13 @@ def parser():
 
 '''Loads images to ram from folder. Also returns class_name for y values'''
 def load_spectograms():
-    img_data_array = np.zeros((DATA_SAMPLES_CNT, 128, 65))
+    img_data_array = np.zeros((DATA_SAMPLES_CNT, IMG_HEIGHT, IMG_WIDTH)) # some how it adds one pixcel
     class_name = np.zeros((DATA_SAMPLES_CNT, 1))
     
     cla = np.array(df["classID"]) # TODO FIX suppose its global
 
     for i in range(0, DATA_SAMPLES_CNT):
-        image_path = "img_save//" + "out" + str(i) + ".png"
+        image_path = "img_save//" + "out" + str(i+1) + "_" + str(df["class"][i]) + ".png"
         image= cv2.imread(image_path, cv2.COLOR_BGR2RGB) # TODO tikrai toks color map???????
         # image=cv2.resize(image, (IMG_HEIGHT, IMG_WIDTH),interpolation = cv2.INTER_AREA)
         image = np.array(image)
@@ -180,11 +178,11 @@ def draw_model_results(model_history):
 
 def train_CNN(x_train, y_train, x_test, y_test):
     
-    x_train = x_train.reshape(DATA_SAMPLES_CNT - TEST_SAMPLES_CNT, 128, 65, 1)
-    x_test = x_test.reshape(TEST_SAMPLES_CNT, 128, 65, 1)
+    x_train = x_train.reshape(DATA_SAMPLES_CNT - TEST_SAMPLES_CNT, IMG_HEIGHT, IMG_WIDTH, 1)
+    x_test = x_test.reshape(TEST_SAMPLES_CNT, IMG_HEIGHT, IMG_WIDTH, 1)
     
     model = Sequential()
-    model.add(Conv2D(filters=256, kernel_size=(3,3), activation='tanh', input_shape = (128, 65, 1)))
+    model.add(Conv2D(filters=256, kernel_size=(3,3), activation='tanh', input_shape = (IMG_HEIGHT, IMG_WIDTH, 1)))
     model.add(MaxPooling2D((2, 2)))
     model.add(Dropout(0.1))     
     model.add(Conv2D(filters=128, kernel_size=(3,3), activation='relu' ))
@@ -205,7 +203,7 @@ def train_CNN(x_train, y_train, x_test, y_test):
     earlystopper = keras.callbacks.EarlyStopping(patience=7, verbose=1, monitor='val_accuracy')
     checkpointer = keras.callbacks.ModelCheckpoint('models\\urban_model.h5', verbose=1, save_best_only=True)
 
-    hist = model.fit(x_train, y_train, batch_size=64, epochs=3, verbose=1, validation_data=(x_test, y_test), callbacks = [earlystopper, checkpointer])
+    hist = model.fit(x_train, y_train, batch_size=64, epochs=80, verbose=1, validation_data=(x_test, y_test), callbacks = [earlystopper, checkpointer])
     draw_model_results(hist)
 
     
@@ -215,6 +213,8 @@ BASE_PATH = "Urband_sounds//UrbanSound8K"
 DATA_SAMPLES_CNT = 8732
 CLASSES_CNT = 10
 TEST_SAMPLES_CNT = 2000
+IMG_HEIGHT = 64
+IMG_WIDTH = 128
 
 df = pd.read_csv("Urband_sounds//UrbanSound8K//metadata//UrbanSound8K.csv")
 if DEBUG_MODE:
@@ -226,7 +226,7 @@ if DEBUG_MODE:
 
 # suppose existanse of images folder shows that there is data
 if not os.path.exists("img_save"):
-    parser()
+    save_wav_to_png()
 
 X_data, Y_data = load_spectograms()
 
