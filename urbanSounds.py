@@ -211,12 +211,12 @@ def train_CNN(x_train, y_train, x_test, y_test):
 DEBUG_MODE = 0
 BASE_PATH = "Urband_sounds//UrbanSound8K"
 DATA_SAMPLES_CNT = 8732
+TEST_SAMPLES_CNT = 837  # only 10 fold for testing
 CLASSES_CNT = 10
-TEST_SAMPLES_CNT = 2000
 IMG_HEIGHT = 64
 IMG_WIDTH = 128
 
-df = pd.read_csv("Urband_sounds//UrbanSound8K//metadata//UrbanSound8K.csv")
+df = pd.read_csv("Urband_sounds//UrbanSound8K//metadata//UrbanSound8K_edit.csv")
 if DEBUG_MODE:
     print(df.head())
     
