@@ -152,6 +152,9 @@ def load_spectograms():
     for i in range(0, DATA_SAMPLES_CNT):
         image_path = "img_save//" + "out" + str(i+1) + "_" + str(df["class"][i]) + ".png"
         image= cv2.imread(image_path, cv2.COLOR_BGR2RGB) # TODO tikrai toks color map???????
+        if image is None:
+            print("Error, image was not found from: " + image_path)
+            quit()
         # image=cv2.resize(image, (IMG_HEIGHT, IMG_WIDTH),interpolation = cv2.INTER_AREA)
         image = np.array(image)
         image = image.astype('float32')
@@ -181,8 +184,11 @@ def train_CNN(x_train, y_train, x_test, y_test):
     x_train = x_train.reshape(DATA_SAMPLES_CNT - TEST_SAMPLES_CNT, IMG_HEIGHT, IMG_WIDTH, 1)
     x_test = x_test.reshape(TEST_SAMPLES_CNT, IMG_HEIGHT, IMG_WIDTH, 1)
     
+    y_train = keras.utils.to_categorical(y_train, num_classes=CLASSES_CNT)
+    y_test = keras.utils.to_categorical(y_test, num_classes=CLASSES_CNT)
+    
     model = Sequential()
-    model.add(Conv2D(filters=256, kernel_size=(3,3), activation='tanh', input_shape = (IMG_HEIGHT, IMG_WIDTH, 1)))
+    model.add(Conv2D(filters=256, kernel_size=(3,3), activation='relu', input_shape = (IMG_HEIGHT, IMG_WIDTH, 1)))
     model.add(MaxPooling2D((2, 2)))
     model.add(Dropout(0.1))     
     model.add(Conv2D(filters=128, kernel_size=(3,3), activation='relu' ))
@@ -193,14 +199,15 @@ def train_CNN(x_train, y_train, x_test, y_test):
     model.add(Dropout(0.2))    
     model.add(Conv2D(filters=64, kernel_size=(3,3), activation='relu' ))
     model.add(MaxPooling2D((2, 2)))
+    model.add(Dropout(0.1))
     model.add(Flatten())
     model.add(Dense(1024, activation = "tanh"))
-    model.add(Dense(units=CLASSES_CNT, activation = "softmax"))
+    model.add(Dense(10, activation = "softmax"))
     
-    model.compile(optimizer='adam', loss=keras.losses.SparseCategoricalCrossentropy(), metrics=['accuracy'])
+    model.compile(optimizer='adam', loss=keras.losses.CategoricalCrossentropy(), metrics=['accuracy'])
     model.summary()
 
-    earlystopper = keras.callbacks.EarlyStopping(patience=7, verbose=1, monitor='val_accuracy')
+    earlystopper = keras.callbacks.EarlyStopping(patience=7, verbose=1, monitor='accuracy')
     checkpointer = keras.callbacks.ModelCheckpoint('models\\urban_model.h5', verbose=1, save_best_only=True)
 
     hist = model.fit(x_train, y_train, batch_size=64, epochs=80, verbose=1, validation_data=(x_test, y_test), callbacks = [earlystopper, checkpointer])
