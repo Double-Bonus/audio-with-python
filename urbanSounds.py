@@ -23,7 +23,7 @@ import seaborn as sns
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Conv2D, Flatten, Dense, MaxPooling2D, Flatten, Dropout
+from tensorflow.keras.layers import Conv2D, Flatten, Dense, MaxPooling2D, Flatten, Dropout, BatchNormalization
 from tensorflow.keras import callbacks
 
 
@@ -247,19 +247,28 @@ def train_CNN(x_train, y_train, x_test, y_test):
     train_labels = keras.utils.to_categorical(y_train, num_classes=CLASSES_CNT)
     test_labels = keras.utils.to_categorical(y_test, num_classes=CLASSES_CNT)
     
+    # Initialize model
     model = Sequential()
-    model.add(Conv2D(filters=256, kernel_size=(3,3), activation='relu', input_shape = (IMG_HEIGHT, IMG_WIDTH, 1)))
+    
+    # Layer 1
+    model.add(Conv2D(filters=96, kernel_size=(3,3), activation='relu', input_shape = (IMG_HEIGHT, IMG_WIDTH, 1)))
     model.add(MaxPooling2D((2, 2)))
-    model.add(Dropout(0.1))     
+     
+    # Layer 2
     model.add(Conv2D(filters=128, kernel_size=(3,3), activation='relu' ))
     model.add(MaxPooling2D((2, 2)))
-    model.add(Dropout(0.2))    
-    model.add(Conv2D(filters=128, kernel_size=(3,3), activation='relu' ))
+    
+    # Layer 3
+    model.add(Conv2D(filters=256, kernel_size=(3,3), activation='relu' ))
     model.add(MaxPooling2D((2, 2)))
-    model.add(Dropout(0.2))    
-    model.add(Conv2D(filters=64, kernel_size=(3,3), activation='relu' ))
+    model.add(Dropout(0.4))    
+    
+    # Layer 4
+    model.add(Conv2D(filters=512, kernel_size=(3,3), activation='relu' ))
     model.add(MaxPooling2D((2, 2)))
-    model.add(Dropout(0.1))
+    model.add(Dropout(0.5))
+    
+    # Layer 5
     model.add(Flatten())
     model.add(Dense(1024, activation = "tanh"))
     model.add(Dense(10, activation = "softmax"))
@@ -270,7 +279,7 @@ def train_CNN(x_train, y_train, x_test, y_test):
     earlystopper = callbacks.EarlyStopping(patience=7, verbose=1, monitor='accuracy')
     checkpointer = callbacks.ModelCheckpoint('models\\urban_model.h5', verbose=1, save_best_only=True)
     
-    hist = model.fit(x_train, train_labels, batch_size=64, epochs=20, verbose=1, validation_data=(x_test, test_labels), callbacks = [earlystopper, checkpointer])
+    hist = model.fit(x_train, train_labels, batch_size=64, epochs=10, verbose=1, validation_data=(x_test, test_labels), callbacks = [earlystopper, checkpointer])
     draw_model_results(hist)
     log_confusion_matrix(model, x_test, y_test) # Note that here you use last model not the one saved!
     
