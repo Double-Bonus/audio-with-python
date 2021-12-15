@@ -14,16 +14,17 @@
 # Basic Libraries
 import pandas as pd
 import numpy as np
-from tensorflow.python.keras import callbacks
 
 pd.plotting.register_matplotlib_converters()
 import matplotlib.pyplot as plt
 import seaborn as sns
 
 # Libraries for Classification and building Models
+import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Conv2D, Flatten, Dense, MaxPooling2D, Flatten, Dropout
+from tensorflow.keras import callbacks
 
 
 # Project Specific Libraries
@@ -34,6 +35,8 @@ import skimage.io
 import torch
 from datetime import datetime
 import cv2
+import sklearn
+import itertools
 
 def show_basic_data():
     dat1, sampling_rate1 = librosa.load(BASE_PATH + "//audio//fold5//100032-3-0-0.wav")
@@ -93,7 +96,6 @@ def pad_trunc(sig, sr, max_ms):
     sig = torch.cat((pad_begin, sig, pad_end), 1)
     
   return (sig, sr)
-
 
 # why ????
 def scale_minmax(X, min=0.0, max=1.0):
@@ -179,13 +181,71 @@ def draw_model_results(model_history):
     plt.grid(b=True)
     plt.show()
 
+
+# TODO FIX comment style you broken C style boi 
+""" Returns a matplotlib figure containing the plotted confusion matrix.
+
+Args:
+    cm (array, shape = [n, n]): a confusion matrix of integer classes
+    class_names (array, shape = [n]): String names of the integer classes
+"""
+def plot_confusion_matrix(cm, class_names):
+  figure = plt.figure(figsize=(8, 8))
+  plt.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
+  plt.title("Confusion matrix")
+  plt.colorbar()
+  tick_marks = np.arange(len(class_names))
+  plt.xticks(tick_marks, class_names, rotation=45)
+  plt.yticks(tick_marks, class_names)
+
+  # Compute the labels from the normalized confusion matrix.
+  labels = np.around(cm.astype('float') / cm.sum(axis=1)[:, np.newaxis], decimals=2)
+
+  # Use white text if squares are dark; otherwise black.
+  threshold = cm.max() / 2.
+  for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):  # TODO why need itertools???
+    color = "white" if cm[i, j] > threshold else "black"
+    plt.text(j, i, labels[i, j], horizontalalignment="center", color=color)
+
+  plt.tight_layout()
+  plt.ylabel('True label')
+  plt.xlabel('Predicted label')  
+  plt.savefig('ConfusionMatrix.png')
+
+def log_confusion_matrix(model, test_images, test_labels):
+  # Use the model to predict the values from the validation dataset.
+  test_pred_raw = model.predict(test_images)
+  test_pred = np.argmax(test_pred_raw, axis=1)
+  
+  # Hardcoded for now TODO FIX
+  class_names = [
+    'air_conditioner',
+    'car_horn',
+    'children_playing',
+    'dog_bark',
+    'drilling',
+    'engine_idling',
+    'gun_shot',
+    'jackhammer',
+    'siren',
+    'street_music']
+
+
+  # Calculate the confusion matrix.
+  cm = sklearn.metrics.confusion_matrix(test_labels, test_pred)
+  # Log the confusion matrix as an image summary.
+  plot_confusion_matrix(cm, class_names=class_names)
+
+  
+  
+
 def train_CNN(x_train, y_train, x_test, y_test):
     
     x_train = x_train.reshape(DATA_SAMPLES_CNT - TEST_SAMPLES_CNT, IMG_HEIGHT, IMG_WIDTH, 1)
     x_test = x_test.reshape(TEST_SAMPLES_CNT, IMG_HEIGHT, IMG_WIDTH, 1)
     
-    y_train = keras.utils.to_categorical(y_train, num_classes=CLASSES_CNT)
-    y_test = keras.utils.to_categorical(y_test, num_classes=CLASSES_CNT)
+    train_labels = keras.utils.to_categorical(y_train, num_classes=CLASSES_CNT)
+    test_labels = keras.utils.to_categorical(y_test, num_classes=CLASSES_CNT)
     
     model = Sequential()
     model.add(Conv2D(filters=256, kernel_size=(3,3), activation='relu', input_shape = (IMG_HEIGHT, IMG_WIDTH, 1)))
@@ -207,11 +267,13 @@ def train_CNN(x_train, y_train, x_test, y_test):
     model.compile(optimizer='adam', loss=keras.losses.CategoricalCrossentropy(), metrics=['accuracy'])
     model.summary()
 
-    earlystopper = keras.callbacks.EarlyStopping(patience=7, verbose=1, monitor='accuracy')
-    checkpointer = keras.callbacks.ModelCheckpoint('models\\urban_model.h5', verbose=1, save_best_only=True)
-
-    hist = model.fit(x_train, y_train, batch_size=64, epochs=80, verbose=1, validation_data=(x_test, y_test), callbacks = [earlystopper, checkpointer])
+    earlystopper = callbacks.EarlyStopping(patience=7, verbose=1, monitor='accuracy')
+    checkpointer = callbacks.ModelCheckpoint('models\\urban_model.h5', verbose=1, save_best_only=True)
+    
+    hist = model.fit(x_train, train_labels, batch_size=64, epochs=20, verbose=1, validation_data=(x_test, test_labels), callbacks = [earlystopper, checkpointer])
     draw_model_results(hist)
+    log_confusion_matrix(model, x_test, y_test) # Note that here you use last model not the one saved!
+    
 
     
 # ----------------------- MAIN ------------------
