@@ -1,0 +1,6 @@
+*.csv
+*.wav
+*.png
+
+models/
+__pycache__/
