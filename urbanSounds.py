@@ -23,7 +23,7 @@ import seaborn as sns
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Conv2D, Flatten, Dense, MaxPooling2D, Flatten, Dropout, BatchNormalization
+from tensorflow.keras.layers import Conv2D, Flatten, Dense, MaxPooling2D, Flatten, Dropout, BatchNormalization, ZeroPadding2D
 from tensorflow.keras import callbacks
 
 
@@ -251,20 +251,22 @@ def train_CNN(x_train, y_train, x_test, y_test):
     model = Sequential()
     
     # Layer 1
-    model.add(Conv2D(filters=96, kernel_size=(3,3), activation='relu', input_shape = (IMG_HEIGHT, IMG_WIDTH, 1)))
+    model.add(Conv2D(filters=96, kernel_size=(3,3), activation='relu', input_shape = (IMG_HEIGHT, IMG_WIDTH, 1), padding='same'))
     model.add(MaxPooling2D((2, 2)))
      
     # Layer 2
-    model.add(Conv2D(filters=128, kernel_size=(3,3), activation='relu' ))
+    model.add(Conv2D(filters=128, kernel_size=(3,3), activation='relu', padding='same' ))
     model.add(MaxPooling2D((2, 2)))
     
     # Layer 3
-    model.add(Conv2D(filters=256, kernel_size=(3,3), activation='relu' ))
+    model.add(ZeroPadding2D((1, 1)))
+    model.add(Conv2D(filters=256, kernel_size=(3,3), activation='relu', padding='same' ))
     model.add(MaxPooling2D((2, 2)))
-    model.add(Dropout(0.4))    
+    model.add(Dropout(0.5))    
     
     # Layer 4
-    model.add(Conv2D(filters=512, kernel_size=(3,3), activation='relu' ))
+    model.add(ZeroPadding2D((1, 1)))
+    model.add(Conv2D(filters=512, kernel_size=(3,3), activation='relu', padding='same' ))
     model.add(MaxPooling2D((2, 2)))
     model.add(Dropout(0.5))
     
@@ -279,7 +281,7 @@ def train_CNN(x_train, y_train, x_test, y_test):
     earlystopper = callbacks.EarlyStopping(patience=7, verbose=1, monitor='accuracy')
     checkpointer = callbacks.ModelCheckpoint('models\\urban_model.h5', verbose=1, save_best_only=True)
     
-    hist = model.fit(x_train, train_labels, batch_size=64, epochs=10, verbose=1, validation_data=(x_test, test_labels), callbacks = [earlystopper, checkpointer])
+    hist = model.fit(x_train, train_labels, batch_size=64, epochs=15, verbose=1, validation_data=(x_test, test_labels), callbacks = [earlystopper, checkpointer])
     draw_model_results(hist)
     log_confusion_matrix(model, x_test, y_test) # Note that here you use last model not the one saved!
     
