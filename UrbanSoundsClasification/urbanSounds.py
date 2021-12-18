@@ -1,5 +1,7 @@
 # Basic implementation of UrbanSound8K dataset classification
-# For starting achieved ~60% val. acc.
+# Using 75/25 train/test spilt achieved ~90-92% val. acc. (TODO for proper validation need
+#   to make: "Use the predefined 10 folds and perform 10-fold (not 5-fold) cross validation")
+# To get better result could try to combine multiple spectral features, for exemple Mel spectram, chromagram or tonnetz.
 
 # Based on: https://towardsdatascience.com/audio-deep-learning-made-simple-sound-classification-step-by-step-cebc936bbe5
 
@@ -34,6 +36,7 @@ import skimage.io
 import torch
 from datetime import datetime
 import cv2
+import sklearn
 
 # Packets TODO it's how they are called???
 from visualise import log_confusion_matrix, show_basic_data, show_diff_classes, draw_model_results
@@ -59,16 +62,20 @@ def pad_trunc(sig, sr, max_ms):
     
   return (sig, sr)
 
-# why ????
 def scale_minmax(X, min=0.0, max=1.0):
     X_std = (X - X.min()) / (X.max() - X.min())
     X_scaled = X_std * (max - min) + min
     return X_scaled
 
-def spectrogram_image(y, sr, out, hop_length, n_mels):
+def spectrogram_image(y, sr, out_path, hop_length, n_mels):
     # use log-melspectrogram
     mels = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=n_mels, n_fft=hop_length*2, hop_length=hop_length)
-    mels = np.log(mels + 1e-9) # add small number to avoid log(0)
+    # mels = librosa.feature.melspectrogram(y=y, sr=sr)
+    
+    if 1:
+        mels = np.log(mels + 1e-9) # add small number to avoid log(0)
+    else:  #testing !
+        mels = np.mean(mels, axis=0)
 
     # min-max scale to fit inside 8-bit range
     img = scale_minmax(mels, 0, 255).astype(np.uint8)
@@ -79,17 +86,18 @@ def spectrogram_image(y, sr, out, hop_length, n_mels):
     if not os.path.exists("img_save"):
         os.makedirs("img_save")
     
-    skimage.io.imsave(("img_save//" + out), img)
+    cv2.imwrite(("img_save//" + out_path), img)
     
     
 '''Saves spectograms data from sound files as png pictures'''
 def save_wav_to_png():
+    print("Saving pictures to drive")
     for i in range(DATA_SAMPLES_CNT):
         file_name = BASE_PATH  + "//audio//fold" + str(df["fold"][i]) + '//' + df["slice_file_name"][i]
         # Here kaiser_fast is a technique used for faster extraction
         y, sr = librosa.load(file_name, res_type='kaiser_fast') 
         
-        out = 'out' + str(i+1) + "_" + str(df["class"][i]) + '.png'
+        img_path = 'out' + str(i+1) + "_" + str(df["class"][i]) + '.png'
         hop_length = 512           # number of samples per time-step in spectrogram
         n_mels = IMG_HEIGHT        # number of bins in spectrogram. Height of image
         time_steps = IMG_WIDTH - 1 # number of time-steps. Width of image (TODO FIX it add 1 px to width!!)
@@ -97,6 +105,7 @@ def save_wav_to_png():
         
         # sr * 4 = size!!!
         # 22050 * 4 = 88200
+        # y = librosa.util.utils.fix_length(y, 75000)  ## suppose it works????? It just adds white space!!!!
         y = librosa.util.utils.fix_length(y, 88200)  ## suppose it works????? It just adds white space!!!!
         # y, sr = pad_trunc(y, sr, 4000)
         
@@ -104,8 +113,9 @@ def save_wav_to_png():
         length_samples = time_steps * hop_length
         window = y[start_sample:start_sample+length_samples]
         
-        spectrogram_image(y=window, sr=sr, out=out, hop_length=hop_length, n_mels=n_mels)
-
+        spectrogram_image(y=window, sr=sr, out_path=img_path, hop_length=hop_length, n_mels=n_mels)
+    print("Done saving pictures!")
+    
 
 '''Loads images to ram from folder. Also returns class_name for y values'''
 def load_spectograms():
@@ -117,6 +127,7 @@ def load_spectograms():
     for i in range(0, DATA_SAMPLES_CNT):
         image_path = "img_save//" + "out" + str(i+1) + "_" + str(df["class"][i]) + ".png"
         image= cv2.imread(image_path, cv2.COLOR_BGR2RGB) # TODO tikrai toks color map???????
+        # image= cv2.imread(image_path)
         if image is None:
             print("Error, image was not found from: " + image_path)
             quit()
@@ -129,10 +140,11 @@ def load_spectograms():
     return img_data_array, class_name
 
 
-def train_CNN(x_train, y_train, x_test, y_test):
+def train_CNN(X, Y, test_portion = 0.25):
+    x_train, x_test, y_train, y_test = sklearn.model_selection.train_test_split(X, Y, test_size=test_portion, random_state=7)
     
-    x_train = x_train.reshape(DATA_SAMPLES_CNT - TEST_SAMPLES_CNT, IMG_HEIGHT, IMG_WIDTH, 1)
-    x_test = x_test.reshape(TEST_SAMPLES_CNT, IMG_HEIGHT, IMG_WIDTH, 1)
+    x_train = x_train.reshape(x_train.shape[0], IMG_HEIGHT, IMG_WIDTH, 1)
+    x_test = x_test.reshape(x_test.shape[0], IMG_HEIGHT, IMG_WIDTH, 1)
     
     train_labels = keras.utils.to_categorical(y_train, num_classes=CLASSES_CNT)
     test_labels = keras.utils.to_categorical(y_test, num_classes=CLASSES_CNT)
@@ -147,6 +159,7 @@ def train_CNN(x_train, y_train, x_test, y_test):
     # Layer 2
     model.add(Conv2D(filters=128, kernel_size=(3,3), activation='relu', padding='same' ))
     model.add(MaxPooling2D((2, 2)))
+    model.add(Dropout(0.1))    
     
     # Layer 3
     model.add(ZeroPadding2D((1, 1)))
@@ -162,8 +175,11 @@ def train_CNN(x_train, y_train, x_test, y_test):
     
     # Layer 5
     model.add(Flatten())
-    model.add(Dense(1024, activation = "tanh"))
-    model.add(Dense(10, activation = "softmax"))
+    model.add(Dense(1024, activation = "relu"))
+    model.add(Dropout(0.5))
+    
+    # Layer 6
+    model.add(Dense(CLASSES_CNT, activation = "softmax"))
     
     model.compile(optimizer='adam', loss=keras.losses.CategoricalCrossentropy(), metrics=['accuracy'])
     model.summary()
@@ -171,7 +187,7 @@ def train_CNN(x_train, y_train, x_test, y_test):
     earlystopper = callbacks.EarlyStopping(patience=7, verbose=1, monitor='accuracy')
     checkpointer = callbacks.ModelCheckpoint('models\\urban_model.h5', verbose=1, save_best_only=True)
     
-    hist = model.fit(x_train, train_labels, batch_size=64, epochs=2, verbose=1, validation_data=(x_test, test_labels), callbacks = [earlystopper, checkpointer])
+    hist = model.fit(x_train, train_labels, batch_size=64, epochs=40, verbose=1, validation_data=(x_test, test_labels), callbacks = [earlystopper, checkpointer])
     draw_model_results(hist)
     log_confusion_matrix(model, x_test, y_test) # Note that here you use last model not the one saved!
     
@@ -181,14 +197,13 @@ DEBUG_MODE = 0
 BASE_PATH = "Urband_sounds//UrbanSound8K"
 DATA_SAMPLES_CNT = 8732
 CLASSES_CNT = 10
-TEST_SAMPLES_CNT = 2000
+TEST_PORTION = 0.25
 IMG_HEIGHT = 64
 IMG_WIDTH = 128
 
 df = pd.read_csv("Urband_sounds//UrbanSound8K//metadata//UrbanSound8K.csv")
 if DEBUG_MODE:
     print(df.head())
-    
     show_basic_data(BASE_PATH)
     show_diff_classes(df, BASE_PATH)
     
@@ -198,21 +213,8 @@ if not os.path.exists("img_save"):
 
 X_data, Y_data = load_spectograms()
 
-# there is tensorflow api for this!!!!!
-# X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33)
 
-x_train = X_data[0:DATA_SAMPLES_CNT-TEST_SAMPLES_CNT]
-x_test = X_data[DATA_SAMPLES_CNT-TEST_SAMPLES_CNT:DATA_SAMPLES_CNT]
-
-y_train = Y_data[0 : DATA_SAMPLES_CNT-TEST_SAMPLES_CNT]
-y_test  = Y_data[DATA_SAMPLES_CNT-TEST_SAMPLES_CNT : DATA_SAMPLES_CNT]
-
-print(x_train.shape)
-print(np.min(x_train), np.max(x_train))
-print(y_train)
-
-
-train_CNN(x_train, y_train, x_test, y_test)
+train_CNN(X_data, Y_data, TEST_PORTION)
 
 
 now = datetime.now()
