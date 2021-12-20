@@ -17,9 +17,6 @@
 import pandas as pd
 import numpy as np
 
-pd.plotting.register_matplotlib_converters()
-import matplotlib.pyplot as plt
-import seaborn as sns
 
 # Libraries for Classification and building Models
 import tensorflow as tf
@@ -187,7 +184,7 @@ def train_CNN(X, Y, test_portion = 0.25):
     earlystopper = callbacks.EarlyStopping(patience=7, verbose=1, monitor='accuracy')
     checkpointer = callbacks.ModelCheckpoint('models\\urban_model.h5', verbose=1, save_best_only=True)
     
-    hist = model.fit(x_train, train_labels, batch_size=64, epochs=40, verbose=1, validation_data=(x_test, test_labels), callbacks = [earlystopper, checkpointer])
+    hist = model.fit(x_train, train_labels, batch_size=128, epochs=40, verbose=1, validation_data=(x_test, test_labels), callbacks = [earlystopper, checkpointer])
     draw_model_results(hist)
     log_confusion_matrix(model, x_test, y_test) # Note that here you use last model not the one saved!
     
