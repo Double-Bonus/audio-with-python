@@ -36,7 +36,8 @@ import cv2
 import sklearn
 
 # Packets TODO it's how they are called???
-from visualise import log_confusion_matrix, show_basic_data, show_diff_classes, draw_model_results
+from visualise import log_confusion_matrix, show_basic_data, show_diff_classes, draw_model_results, show_mel_img
+from visualise import plot_wave_from_audio
 
 #------------------ Normal work -----------------------
 
@@ -203,6 +204,8 @@ if DEBUG_MODE:
     print(df.head())
     show_basic_data(BASE_PATH)
     show_diff_classes(df, BASE_PATH)
+    show_mel_img(BASE_PATH, IMG_HEIGHT)
+    plot_wave_from_audio(df, BASE_PATH)
     
 # suppose existanse of images folder shows that there is data
 if not os.path.exists("img_save"):

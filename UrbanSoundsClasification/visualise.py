@@ -1,13 +1,16 @@
 # File for handling plots and visualising data
 
 
-
 import sklearn
 import matplotlib.pyplot as plt
 import numpy as np
 import itertools
 import librosa
+import wave
 
+# ----------------------------- Private Defines ---------------------------------
+WINDOW_HEIGHT = 10
+WINDOW_WIDTH = 5
 
 
 # ----------------------------- Private functions -------------------------------
@@ -61,7 +64,6 @@ def log_confusion_matrix(model, test_images, test_labels):
     'siren',
     'street_music']
 
-
   # Calculate the confusion matrix.
   cm = sklearn.metrics.confusion_matrix(test_labels, test_pred)
   # Log the confusion matrix as an image summary.
@@ -69,57 +71,77 @@ def log_confusion_matrix(model, test_images, test_labels):
   
   
 def draw_model_results(model_history):
-    plt.subplot(121)
-    plt.plot(model_history.history['accuracy'], 'r')
-    plt.plot(model_history.history['val_accuracy'], 'b')
-    plt.ylabel('accuracy, r - train, b - val')
-    plt.xlabel('epoch')
-    plt.grid(b=True)
+  plt.subplot(121)
+  plt.plot(model_history.history['accuracy'], 'r')
+  plt.plot(model_history.history['val_accuracy'], 'b')
+  plt.ylabel('accuracy, r - train, b - val')
+  plt.xlabel('epoch')
+  plt.grid(b=True)
+  
+  plt.subplot(122)
+  plt.plot(model_history.history['loss'], 'r')
+  plt.plot(model_history.history['val_loss'], 'b')
+  plt.ylabel('Loss, r - train, b - val')
+  plt.xlabel('epoch')
+  plt.grid(b=True)
+  plt.show()
     
-    plt.subplot(122)
-    plt.plot(model_history.history['loss'], 'r')
-    plt.plot(model_history.history['val_loss'], 'b')
-    plt.ylabel('Loss, r - train, b - val')
-    plt.xlabel('epoch')
-    plt.grid(b=True)
-    plt.show()
-    
-    
-def show_basic_data(BASE_PATH):
-    dat1, sampling_rate1 = librosa.load(BASE_PATH + "//audio//fold5//100032-3-0-0.wav")
-    dat2, sampling_rate2 = librosa.load(BASE_PATH + "//audio//fold5//100263-2-0-117.wav")
-    plt.figure(figsize=(20, 10))
-    D = librosa.amplitude_to_db(np.abs(librosa.stft(dat1)), ref=np.max)
-    plt.subplot(4, 2, 1)
-    librosa.display.specshow(D, y_axis='linear')
-    plt.colorbar(format='%+2.0f dB')
-    plt.title('Linear-frequency power spectrogram')
-    # plt.show()
+'''Plot Linear-frequency power spectrogram for audio files'''
+def show_basic_data(base_path):
+  dat1, sampling_rate1 = librosa.load(base_path + "//audio//fold5//100032-3-0-0.wav")
+  dat2, sampling_rate2 = librosa.load(base_path + "//audio//fold5//100263-2-0-117.wav")
+  plt.figure(figsize=(WINDOW_HEIGHT, WINDOW_WIDTH))
+  D = librosa.amplitude_to_db(np.abs(librosa.stft(dat1)), ref=np.max)
+  plt.subplot(4, 2, 1)
+  librosa.display.specshow(D, y_axis='linear')
+  plt.colorbar(format='%+2.0f dB')
+  plt.title('Linear-frequency power spectrogram')
 
-    # plt.figure(figsize=(20, 10))
-    D = librosa.amplitude_to_db(np.abs(librosa.stft(dat2)), ref=np.max)
-    plt.subplot(4, 2, 2)
-    librosa.display.specshow(D, y_axis='linear')
-    plt.colorbar(format='%+2.0f dB')
-    plt.title('Linear-frequency power spectrogram')
-    plt.show()
+  D = librosa.amplitude_to_db(np.abs(librosa.stft(dat2)), ref=np.max)
+  plt.subplot(4, 2, 2)
+  librosa.display.specshow(D, y_axis='linear')
+  plt.colorbar(format='%+2.0f dB')
+  plt.title('Linear-frequency power spectrogram')
+  plt.show()
+
+'''Using random samples to observe difference in waveforms from Lin.-fq power spectrograms'''
+def show_diff_classes(df, base_path):
+  arr = np.array(df["slice_file_name"])
+  fold = np.array(df["fold"])
+  cla = np.array(df["class"])
+
+  j = 1
+  plt.figure(figsize=(WINDOW_HEIGHT, WINDOW_WIDTH))
+  for i in range(175, 197, 3):
+      path = base_path  + "//audio//fold" + str(fold[i]) + '//' + arr[i]
+      data, sampling_rate = librosa.load(path)
+      D = librosa.amplitude_to_db(np.abs(librosa.stft(data)), ref=np.max)
+      plt.subplot(4, 2, j)
+      j = j + 1
+      librosa.display.specshow(D, y_axis='linear')
+      plt.colorbar(format='%+2.0f dB')
+      plt.title(cla[i])
+  plt.show()
 
 
-def show_diff_classes(df, BASE_PATH):
-    '''Using random samples to observe difference in waveforms.'''
-    arr = np.array(df["slice_file_name"])
-    fold = np.array(df["fold"])
-    cla = np.array(df["class"])
+'''Function shows mel-spectogram of audio file'''
+def show_mel_img(base_path, img_h):  
+  y, sr = librosa.load(base_path + "//audio//fold2//100652-3-0-0.wav")
+  S = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=img_h, fmax=8000)
+  S_dB = librosa.power_to_db(S, ref=np.max)
+  img = librosa.display.specshow(S_dB, x_axis='time',y_axis='mel', sr=sr, fmax=8000)
+  plt.colorbar(format='%+2.0f dB')
+  plt.title('Mel spectrogram')
+  plt.show()
 
-    j = 1
-    plt.figure(figsize=(10, 5))
-    for i in range(175, 197, 3):
-        path = BASE_PATH  + "//audio//fold" + str(fold[i]) + '//' + arr[i]
-        data, sampling_rate = librosa.load(path)
-        D = librosa.amplitude_to_db(np.abs(librosa.stft(data)), ref=np.max)
-        plt.subplot(4, 2, j)
-        j = j + 1
-        librosa.display.specshow(D, y_axis='linear')
-        plt.colorbar(format='%+2.0f dB')
-        plt.title(cla[i])
-    plt.show()
+
+'''Function plots audio file in wave form'''
+def plot_wave_from_audio(df, base_path):
+  for j in range(1, 3):
+    i = np.random.randint(0, 8732)
+    path = base_path  + "//audio//fold" + str(df["fold"][i]) + '//' + df["slice_file_name"][i]
+    data, sr = librosa.load(path) 
+    plt.subplot(2, 1, j)   
+    librosa.display.waveshow(data, sr=sr, x_axis='time', offset=0.0, marker='', where='post')
+    plt.title("Audio signal in wave form of: " + str(df["class"][i]))
+  plt.show()
