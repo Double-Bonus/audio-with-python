@@ -10,7 +10,6 @@
    - Add Time Shift (optional?) https://towardsdatascience.com/audio-deep-learning-made-simple-part-3-data-preparation-and-augmentation-24c6e1f6b52
    - Update model structure to get better results
    - Check model fit cb early stoper api
-   - use openCV or skimage not both!
 '''
 
 # Basic Libraries
@@ -41,24 +40,29 @@ from visualise import plot_wave_from_audio
 
 #------------------ Normal work -----------------------
 
-# Pad (or truncate) the signal to a fixed length 'max_ms' in milliseconds
 def pad_trunc(sig, sr, max_ms):
-  num_rows = sig.shape
-  sig_len = librosa.get_duration(y=sig, sr=sr)
-  max_len = sr//1000 * max_ms
-  if (sig_len > max_len):
-    # Truncate the signal to the given length
-    sig = sig[:,:max_len]
-  elif (sig_len < max_len):
-    # Length of padding to add at the beginning and end of the signal
-    pad_begin_len = np.random.randint(0, max_len - sig_len)
-    pad_end_len = max_len - sig_len - pad_begin_len
-    # Pad with 0s
-    pad_begin = torch.zeros((num_rows, pad_begin_len))
-    pad_end = torch.zeros((num_rows, pad_end_len))
-    sig = torch.cat((pad_begin, sig, pad_end), 1)
-    
-  return (sig, sr)
+    """
+    Pad (or truncate) the signal to a fixed length 'max_ms' in milliseconds
+
+    Args:
+        sig : audio signal data
+    """
+    num_rows = sig.shape
+    sig_len = librosa.get_duration(y=sig, sr=sr)
+    max_len = sr//1000 * max_ms
+    if (sig_len > max_len):
+        # Truncate the signal to the given length
+        sig = sig[:,:max_len]
+    elif (sig_len < max_len):
+        # Length of padding to add at the beginning and end of the signal
+        pad_begin_len = np.random.randint(0, max_len - sig_len)
+        pad_end_len = max_len - sig_len - pad_begin_len
+        # Pad with 0s
+        pad_begin = torch.zeros((num_rows, pad_begin_len))
+        pad_end = torch.zeros((num_rows, pad_end_len))
+        sig = torch.cat((pad_begin, sig, pad_end), 1)
+        
+    return (sig, sr)
 
 def scale_minmax(X, min=0.0, max=1.0):
     X_std = (X - X.min()) / (X.max() - X.min())
@@ -87,8 +91,10 @@ def spectrogram_image(y, sr, out_path, hop_length, n_mels):
     cv2.imwrite(("img_save//" + out_path), img)
     
     
-'''Saves spectograms data from sound files as png pictures'''
 def save_wav_to_png():
+    """ 
+    Saves spectograms data from sound files as png pictures
+    """
     print("Saving pictures to drive")
     for i in range(DATA_SAMPLES_CNT):
         file_name = BASE_PATH  + "//audio//fold" + str(df["fold"][i]) + '//' + df["slice_file_name"][i]
@@ -115,8 +121,14 @@ def save_wav_to_png():
     print("Done saving pictures!")
     
 
-'''Loads images to ram from folder. Also returns class_name for y values'''
 def load_spectograms():
+    """ 
+    Loads images to RAM from folder.
+
+    Returns:
+        Images arrau and class_name for y values
+    """
+    print("Loading images from drive to RAM!")
     img_data_array = np.zeros((DATA_SAMPLES_CNT, IMG_HEIGHT, IMG_WIDTH)) # some how it adds one pixcel
     class_name = np.zeros((DATA_SAMPLES_CNT, 1))
     
@@ -139,6 +151,14 @@ def load_spectograms():
 
 
 def train_CNN(X, Y, test_portion = 0.25):
+    """ 
+    Trains CNN with givrn inputs and predifend image dimensions
+
+    Args:
+        X : data inputs
+        Y : data outputs
+        test_portion (float, optional): What portion of data is used to validate. Defaults to 0.25.
+    """
     x_train, x_test, y_train, y_test = sklearn.model_selection.train_test_split(X, Y, test_size=test_portion, random_state=7)
     
     x_train = x_train.reshape(x_train.shape[0], IMG_HEIGHT, IMG_WIDTH, 1)
@@ -156,36 +176,46 @@ def train_CNN(X, Y, test_portion = 0.25):
      
     # Layer 2
     model.add(Conv2D(filters=128, kernel_size=(3,3), activation='relu', padding='same' ))
+    # model.add(BatchNormalization())
     model.add(MaxPooling2D((2, 2)))
-    model.add(Dropout(0.1))    
     
     # Layer 3
     model.add(ZeroPadding2D((1, 1)))
     model.add(Conv2D(filters=256, kernel_size=(3,3), activation='relu', padding='same' ))
+    # model.add(BatchNormalization())
     model.add(MaxPooling2D((2, 2)))
-    model.add(Dropout(0.5))    
+    model.add(Dropout(0.1))    
+    
     
     # Layer 4
     model.add(ZeroPadding2D((1, 1)))
     model.add(Conv2D(filters=512, kernel_size=(3,3), activation='relu', padding='same' ))
+    # model.add(BatchNormalization())
     model.add(MaxPooling2D((2, 2)))
     model.add(Dropout(0.5))
     
     # Layer 5
-    model.add(Flatten())
     model.add(Dense(1024, activation = "relu"))
+    # model.add(BatchNormalization())
     model.add(Dropout(0.5))
     
     # Layer 6
+    model.add(Flatten())
+    model.add(Dense(1024, activation = "relu"))
+    # model.add(BatchNormalization())
+    model.add(Dropout(0.5))
+    
+    # Layer 7
     model.add(Dense(CLASSES_CNT, activation = "softmax"))
     
     model.compile(optimizer='adam', loss=keras.losses.CategoricalCrossentropy(), metrics=['accuracy'])
     model.summary()
 
-    earlystopper = callbacks.EarlyStopping(patience=7, verbose=1, monitor='accuracy')
+    # earlystopper = callbacks.EarlyStopping(patience=7, verbose=1, monitor='accuracy')
     checkpointer = callbacks.ModelCheckpoint('models\\urban_model.h5', verbose=1, save_best_only=True)
     
-    hist = model.fit(x_train, train_labels, batch_size=128, epochs=40, verbose=1, validation_data=(x_test, test_labels), callbacks = [earlystopper, checkpointer])
+    # hist = model.fit(x_train, train_labels, batch_size=128, epochs=100, verbose=1, validation_data=(x_test, test_labels), callbacks = [earlystopper, checkpointer])
+    hist = model.fit(x_train, train_labels, batch_size=128, epochs=60, verbose=1, validation_data=(x_test, test_labels), callbacks = [ checkpointer])
     draw_model_results(hist)
     log_confusion_matrix(model, x_test, y_test) # Note that here you use last model not the one saved!
     

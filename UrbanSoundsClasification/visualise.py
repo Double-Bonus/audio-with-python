@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import itertools
 import librosa
-import wave
 
 # ----------------------------- Private Defines ---------------------------------
 WINDOW_HEIGHT = 10
@@ -14,14 +13,14 @@ WINDOW_WIDTH = 5
 
 
 # ----------------------------- Private functions -------------------------------
-# TODO FIX comment style you broken C style boi 
-""" Returns a matplotlib figure containing the plotted confusion matrix.
-
-Args:
+def plot_confusion_matrix(cm, class_names):
+  """ 
+  Saves a matplotlib figure containing the plotted confusion matrix.
+  
+  Args:
     cm (array, shape = [n, n]): a confusion matrix of integer classes
     class_names (array, shape = [n]): String names of the integer classes
-"""
-def plot_confusion_matrix(cm, class_names):
+  """
   figure = plt.figure(figsize=(8, 8))
   plt.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
   plt.title("Confusion matrix")
@@ -86,8 +85,13 @@ def draw_model_results(model_history):
   plt.grid(b=True)
   plt.show()
     
-'''Plot Linear-frequency power spectrogram for audio files'''
 def show_basic_data(base_path):
+  """
+  Plot Linear-frequency power spectrogram for audio files
+
+  Args:
+      base_path : path to UrbandSounds8K db
+  """
   dat1, sampling_rate1 = librosa.load(base_path + "//audio//fold5//100032-3-0-0.wav")
   dat2, sampling_rate2 = librosa.load(base_path + "//audio//fold5//100263-2-0-117.wav")
   plt.figure(figsize=(WINDOW_HEIGHT, WINDOW_WIDTH))
@@ -104,8 +108,14 @@ def show_basic_data(base_path):
   plt.title('Linear-frequency power spectrogram')
   plt.show()
 
-'''Using random samples to observe difference in waveforms from Lin.-fq power spectrograms'''
 def show_diff_classes(df, base_path):
+  """
+  Using random samples to observe difference in waveforms from Lin.-fq power spectrograms
+
+  Args:
+      df : metadata frame for UrbandSounds8K
+      base_path : path to UrbandSounds8K db
+  """
   arr = np.array(df["slice_file_name"])
   fold = np.array(df["fold"])
   cla = np.array(df["class"])
@@ -124,8 +134,13 @@ def show_diff_classes(df, base_path):
   plt.show()
 
 
-'''Function shows mel-spectogram of audio file'''
 def show_mel_img(base_path, img_h):  
+  """
+  Function shows mel-spectogram of audio file
+
+  Args:
+      base_path: path to UrbandSounds8K db
+  """
   y, sr = librosa.load(base_path + "//audio//fold2//100652-3-0-0.wav")
   S = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=img_h, fmax=8000)
   S_dB = librosa.power_to_db(S, ref=np.max)
@@ -135,8 +150,14 @@ def show_mel_img(base_path, img_h):
   plt.show()
 
 
-'''Function plots audio file in wave form'''
 def plot_wave_from_audio(df, base_path):
+  """ 
+  Function plots audio file in wave form
+
+  Args:
+      df : metadata frame for UrbandSounds8K
+      base_path : path to UrbandSounds8K db
+  """
   for j in range(1, 3):
     i = np.random.randint(0, 8732)
     path = base_path  + "//audio//fold" + str(df["fold"][i]) + '//' + df["slice_file_name"][i]
