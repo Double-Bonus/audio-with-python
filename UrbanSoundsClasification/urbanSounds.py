@@ -20,8 +20,6 @@ import numpy as np
 # Libraries for Classification and building Models
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Conv2D, Flatten, Dense, MaxPooling2D, Flatten, Dropout, BatchNormalization, ZeroPadding2D
 from tensorflow.keras import callbacks
 
 # Project Specific Libraries
@@ -37,6 +35,69 @@ import sklearn
 # Packets TODO it's how they are called???
 from visualise import log_confusion_matrix, show_basic_data, show_diff_classes, draw_model_results, show_mel_img
 from visualise import plot_wave_from_audio
+from cnn_model import get_cnn
+
+
+
+
+def test_a():
+    from sklearn.model_selection import KFold
+    ### Train and evaluate via 10-Folds cross-validation ###
+    accuracies = []
+    folds = np.array(['fold1','fold2','fold3','fold4',
+                    'fold5','fold6','fold7','fold8',
+                    'fold9','fold10'])
+    load_dir = "UrbanSounds8K/processed/"
+    kf = KFold(n_splits=10)
+    for train_index, test_index in kf.split(folds):
+        x_train, y_train = [], []
+        for ind in train_index:
+            # read features or segments of an audio file
+            train_data = np.load("{0}/{1}.npz".format(load_dir,folds[ind]),
+                        allow_pickle=True)
+            # for training stack all the segments so that they are treated as an example/instance
+            features = np.concatenate(train_data["features"], axis=0)
+            labels = np.concatenate(train_data["labels"], axis=0)
+            x_train.append(features)
+            y_train.append(labels)
+        # stack x,y pairs of all training folds
+        # continue
+        x_train = np.concatenate(x_train, axis = 0).astype(np.float32)
+        y_train = np.concatenate(y_train, axis = 0).astype(np.float32)
+
+        # for testing we will make predictions on each segment and average them to
+        # produce signle label for an entire sound clip.
+        test_data = np.load("{0}/{1}.npz".format(load_dir,
+                    folds[test_index][0]), allow_pickle=True)
+        x_test = test_data["features"]
+        y_test = test_data["labels"]
+
+        model = get_network()
+        model.fit(x_train, y_train, epochs = 50, batch_size = 24, verbose = 0)
+
+        # evaluate on test set/fold
+        y_true, y_pred = [], []
+        for x, y in zip(x_test, y_test):
+            # average predictions over segments of a sound clip
+            avg_p = np.argmax(np.mean(model.predict(x), axis = 0))
+            y_pred.append(avg_p)
+            # pick single label via np.unique for a sound clip
+            y_true.append(np.unique(y)[0])
+        accuracies.append(accuracy_score(y_true, y_pred))
+    print("Average 10 Folds Accuracy: {0}".format(np.mean(accuracies)))
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #------------------ Normal work -----------------------
 
@@ -69,7 +130,7 @@ def scale_minmax(X, min=0.0, max=1.0):
     X_scaled = X_std * (max - min) + min
     return X_scaled
 
-def spectrogram_image(y, sr, out_path, hop_length, n_mels):
+def spectrogram_image(y, sr, out_dir, out_name, hop_length, n_mels):
     # use log-melspectrogram
     mels = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=n_mels, n_fft=hop_length*2, hop_length=hop_length)
     # mels = librosa.feature.melspectrogram(y=y, sr=sr)
@@ -85,13 +146,13 @@ def spectrogram_image(y, sr, out_path, hop_length, n_mels):
     img = 255 - img            # invert. make black==more energy
 
     # save as PNG
-    if not os.path.exists("img_save"):
-        os.makedirs("img_save")
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
     
-    cv2.imwrite(("img_save//" + out_path), img)
+    cv2.imwrite((out_dir + "\\" + out_name), img)
     
     
-def save_wav_to_png():
+def save_wav_to_png(use_Kfold = False):
     """ 
     Saves spectograms data from sound files as png pictures
     """
@@ -101,7 +162,7 @@ def save_wav_to_png():
         # Here kaiser_fast is a technique used for faster extraction
         y, sr = librosa.load(file_name, res_type='kaiser_fast') 
         
-        img_path = 'out' + str(i+1) + "_" + str(df["class"][i]) + '.png'
+        img_name = 'out' + str(i+1) + "_" + str(df["class"][i]) + '.png'
         hop_length = 512           # number of samples per time-step in spectrogram
         n_mels = IMG_HEIGHT        # number of bins in spectrogram. Height of image
         time_steps = IMG_WIDTH - 1 # number of time-steps. Width of image (TODO FIX it add 1 px to width!!)
@@ -117,7 +178,12 @@ def save_wav_to_png():
         length_samples = time_steps * hop_length
         window = y[start_sample:start_sample+length_samples]
         
-        spectrogram_image(y=window, sr=sr, out_path=img_path, hop_length=hop_length, n_mels=n_mels)
+        if use_Kfold:
+            dir_name = "processed//fold" + str(df["fold"][i])
+        else:
+            dir_name = "img_save"
+        
+        spectrogram_image(y=window, sr=sr, out_dir=dir_name , out_name=img_name, hop_length=hop_length, n_mels=n_mels)
     print("Done saving pictures!")
     
 
@@ -167,61 +233,22 @@ def train_CNN(X, Y, test_portion = 0.25):
     train_labels = keras.utils.to_categorical(y_train, num_classes=CLASSES_CNT)
     test_labels = keras.utils.to_categorical(y_test, num_classes=CLASSES_CNT)
     
-    # Initialize model
-    model = Sequential()
-    
-    # Layer 1
-    model.add(Conv2D(filters=96, kernel_size=(3,3), activation='relu', input_shape = (IMG_HEIGHT, IMG_WIDTH, 1), padding='same'))
-    model.add(MaxPooling2D((2, 2)))
-     
-    # Layer 2
-    model.add(Conv2D(filters=128, kernel_size=(3,3), activation='relu', padding='same' ))
-    # model.add(BatchNormalization())
-    model.add(MaxPooling2D((2, 2)))
-    
-    # Layer 3
-    model.add(ZeroPadding2D((1, 1)))
-    model.add(Conv2D(filters=256, kernel_size=(3,3), activation='relu', padding='same' ))
-    # model.add(BatchNormalization())
-    model.add(MaxPooling2D((2, 2)))
-    model.add(Dropout(0.1))    
-    
-    
-    # Layer 4
-    model.add(ZeroPadding2D((1, 1)))
-    model.add(Conv2D(filters=512, kernel_size=(3,3), activation='relu', padding='same' ))
-    # model.add(BatchNormalization())
-    model.add(MaxPooling2D((2, 2)))
-    model.add(Dropout(0.5))
-    
-    # Layer 5
-    model.add(Dense(1024, activation = "relu"))
-    # model.add(BatchNormalization())
-    model.add(Dropout(0.5))
-    
-    # Layer 6
-    model.add(Flatten())
-    model.add(Dense(1024, activation = "relu"))
-    # model.add(BatchNormalization())
-    model.add(Dropout(0.5))
-    
-    # Layer 7
-    model.add(Dense(CLASSES_CNT, activation = "softmax"))
-    
-    model.compile(optimizer='adam', loss=keras.losses.CategoricalCrossentropy(), metrics=['accuracy'])
+    model = get_cnn(IMG_HEIGHT, IMG_WIDTH, CLASSES_CNT)
     model.summary()
 
     # earlystopper = callbacks.EarlyStopping(patience=7, verbose=1, monitor='accuracy')
     checkpointer = callbacks.ModelCheckpoint('models\\urban_model.h5', verbose=1, save_best_only=True)
     
     # hist = model.fit(x_train, train_labels, batch_size=128, epochs=100, verbose=1, validation_data=(x_test, test_labels), callbacks = [earlystopper, checkpointer])
-    hist = model.fit(x_train, train_labels, batch_size=128, epochs=60, verbose=1, validation_data=(x_test, test_labels), callbacks = [ checkpointer])
+    hist = model.fit(x_train, train_labels, batch_size=128, epochs=30, verbose=1, validation_data=(x_test, test_labels), callbacks = [ checkpointer])
     draw_model_results(hist)
     log_confusion_matrix(model, x_test, y_test) # Note that here you use last model not the one saved!
     
     
 # ----------------------- MAIN ------------------
-DEBUG_MODE = 0
+DEBUG_MODE = False
+USE_KFOLD_VALID = True
+
 BASE_PATH = "Urband_sounds//UrbanSound8K"
 DATA_SAMPLES_CNT = 8732
 CLASSES_CNT = 10
@@ -237,9 +264,18 @@ if DEBUG_MODE:
     show_mel_img(BASE_PATH, IMG_HEIGHT)
     plot_wave_from_audio(df, BASE_PATH)
     
-# suppose existanse of images folder shows that there is data
-if not os.path.exists("img_save"):
-    save_wav_to_png()
+    
+# test_a()
+
+
+if USE_KFOLD_VALID:
+    fold = "processed"
+else:
+    fold = "img_save"
+    
+# suppose existanse of images folder shows that there is data   NOW THIS APPPORACH IS RETARDED
+if not os.path.exists(fold):
+    save_wav_to_png(USE_KFOLD_VALID)
 
 X_data, Y_data = load_spectograms()
 
@@ -250,3 +286,6 @@ train_CNN(X_data, Y_data, TEST_PORTION)
 now = datetime.now()
 current_time = now.strftime("%H:%M:%S")
 print("Done! at: ", current_time)
+
+
+
