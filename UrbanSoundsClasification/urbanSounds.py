@@ -18,7 +18,6 @@ import numpy as np
 
 
 # Libraries for Classification and building Models
-import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import callbacks
 
@@ -32,9 +31,8 @@ from datetime import datetime
 import cv2
 import sklearn
 
-# Packets TODO it's how they are called???
-from visualise import log_confusion_matrix, show_basic_data, show_diff_classes, draw_model_results, show_mel_img
-from visualise import plot_wave_from_audio
+# User defined modules
+from visualise import *
 from cnn_model import get_cnn
 
 
@@ -266,7 +264,6 @@ if DEBUG_MODE:
     
     
 # test_a()
-
 
 if USE_KFOLD_VALID:
     fold = "processed"

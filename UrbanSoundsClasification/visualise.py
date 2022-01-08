@@ -8,12 +8,12 @@ import itertools
 import librosa
 
 # ----------------------------- Private Defines ---------------------------------
-WINDOW_HEIGHT = 10
-WINDOW_WIDTH = 5
+_WINDOW_HEIGHT = 10
+_WINDOW_WIDTH = 5
 
 
 # ----------------------------- Private functions -------------------------------
-def plot_confusion_matrix(cm, class_names):
+def _plot_confusion_matrix(cm, class_names):
   """ 
   Saves a matplotlib figure containing the plotted confusion matrix.
   
@@ -66,7 +66,7 @@ def log_confusion_matrix(model, test_images, test_labels):
   # Calculate the confusion matrix.
   cm = sklearn.metrics.confusion_matrix(test_labels, test_pred)
   # Log the confusion matrix as an image summary.
-  plot_confusion_matrix(cm, class_names=class_names)
+  _plot_confusion_matrix(cm, class_names=class_names)
   
   
 def draw_model_results(model_history):
@@ -94,7 +94,7 @@ def show_basic_data(base_path):
   """
   dat1, sampling_rate1 = librosa.load(base_path + "//audio//fold5//100032-3-0-0.wav")
   dat2, sampling_rate2 = librosa.load(base_path + "//audio//fold5//100263-2-0-117.wav")
-  plt.figure(figsize=(WINDOW_HEIGHT, WINDOW_WIDTH))
+  plt.figure(figsize=(_WINDOW_HEIGHT, _WINDOW_WIDTH))
   D = librosa.amplitude_to_db(np.abs(librosa.stft(dat1)), ref=np.max)
   plt.subplot(4, 2, 1)
   librosa.display.specshow(D, y_axis='linear')
@@ -121,7 +121,7 @@ def show_diff_classes(df, base_path):
   cla = np.array(df["class"])
 
   j = 1
-  plt.figure(figsize=(WINDOW_HEIGHT, WINDOW_WIDTH))
+  plt.figure(figsize=(_WINDOW_HEIGHT, _WINDOW_WIDTH))
   for i in range(175, 197, 3):
       path = base_path  + "//audio//fold" + str(fold[i]) + '//' + arr[i]
       data, sampling_rate = librosa.load(path)
