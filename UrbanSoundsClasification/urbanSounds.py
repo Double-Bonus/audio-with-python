@@ -39,49 +39,67 @@ from cnn_model import get_cnn
 
 
 def test_a():
-    from sklearn.model_selection import KFold
+    from sklearn.metrics import accuracy_score
+    import gc
+
     ### Train and evaluate via 10-Folds cross-validation ###
-    accuracies = []
-    folds = np.array(['fold1','fold2','fold3','fold4',
-                    'fold5','fold6','fold7','fold8',
-                    'fold9','fold10'])
-    load_dir = "UrbanSounds8K/processed/"
-    kf = KFold(n_splits=10)
-    for train_index, test_index in kf.split(folds):
-        x_train, y_train = [], []
-        for ind in train_index:
-            # read features or segments of an audio file
-            train_data = np.load("{0}/{1}.npz".format(load_dir,folds[ind]),
-                        allow_pickle=True)
-            # for training stack all the segments so that they are treated as an example/instance
-            features = np.concatenate(train_data["features"], axis=0)
-            labels = np.concatenate(train_data["labels"], axis=0)
-            x_train.append(features)
-            y_train.append(labels)
-        # stack x,y pairs of all training folds
-        # continue
-        x_train = np.concatenate(x_train, axis = 0).astype(np.float32)
-        y_train = np.concatenate(y_train, axis = 0).astype(np.float32)
+    accuracies = np.zeros((CLASSES_CNT, 1))
+    
+    folds_cnt = np.zeros(CLASSES_CNT, dtype=int)
+    for i in range(0, DATA_SAMPLES_CNT):
+         folds_cnt[df["fold"][i] -1 ]  =  folds_cnt[df["fold"][i] -1] + 1
+         
+    # 10-fold cross validation
+    for test_index in range(0, 10):
+        print("Using " + str(test_index) + " fold out of 10")
+        gc.collect()
+        x_train = np.zeros((DATA_SAMPLES_CNT - folds_cnt[test_index], IMG_HEIGHT, IMG_WIDTH))
+        y_train = np.zeros((DATA_SAMPLES_CNT - folds_cnt[test_index], 1))
+        x_test = np.zeros((folds_cnt[test_index], IMG_HEIGHT, IMG_WIDTH))
+        y_test = np.zeros((folds_cnt[test_index], 1))
+        test_i = 0
+        train_i = 0
+        
+        for i in range(0, DATA_SAMPLES_CNT):
+            image_path = "processed//fold" + str(df["fold"][i]) + "//out" + str(i+1) + "_" + str(df["class"][i]) + ".png"
+            image= cv2.imread(image_path, cv2.COLOR_BGR2RGB)
+            if image is None:
+                print("Error, image was not found from: " + image_path)
+                quit()
+            image = np.array(image)
+            image = image.astype('float32')
+            image /= 255
+            if test_index == (df["fold"][i]-1):
+                x_test[test_i] = image 
+                y_test[test_i] = df["classID"][i]
+                test_i = test_i + 1
+            else:
+                x_train[train_i] = image 
+                y_train[train_i] = df["classID"][i]
+                train_i = train_i + 1
+            
+        model = get_cnn(IMG_HEIGHT, IMG_WIDTH, CLASSES_CNT)
+        
+        x_train = x_train.reshape(x_train.shape[0], IMG_HEIGHT, IMG_WIDTH, 1)
+        x_test = x_test.reshape(x_test.shape[0], IMG_HEIGHT, IMG_WIDTH, 1)
+        
+        train_labels = keras.utils.to_categorical(y_train, num_classes=CLASSES_CNT)
+        test_labels = keras.utils.to_categorical(y_test, num_classes=CLASSES_CNT)
+        
+        model.fit(x_train, train_labels, epochs = 25, batch_size = 32, verbose = 1)
 
-        # for testing we will make predictions on each segment and average them to
-        # produce signle label for an entire sound clip.
-        test_data = np.load("{0}/{1}.npz".format(load_dir,
-                    folds[test_index][0]), allow_pickle=True)
-        x_test = test_data["features"]
-        y_test = test_data["labels"]
 
-        model = get_network()
-        model.fit(x_train, y_train, epochs = 50, batch_size = 24, verbose = 0)
-
-        # evaluate on test set/fold
-        y_true, y_pred = [], []
-        for x, y in zip(x_test, y_test):
-            # average predictions over segments of a sound clip
-            avg_p = np.argmax(np.mean(model.predict(x), axis = 0))
-            y_pred.append(avg_p)
-            # pick single label via np.unique for a sound clip
-            y_true.append(np.unique(y)[0])
-        accuracies.append(accuracy_score(y_true, y_pred))
+        pred = model.predict(x_test)
+        y_pred = np.argmax(pred, axis=1) 
+        rounded_labels=np.argmax(test_labels, axis=1)
+        accuracies[test_index] = accuracy_score(rounded_labels, y_pred)
+        
+        # TODO FIX: deallocating memory manually for now :(
+        del x_train
+        del y_train
+        del x_test
+        del y_test
+        
     print("Average 10 Folds Accuracy: {0}".format(np.mean(accuracies)))
 
 
@@ -263,7 +281,7 @@ if DEBUG_MODE:
     plot_wave_from_audio(df, BASE_PATH)
     
     
-# test_a()
+
 
 if USE_KFOLD_VALID:
     fold = "processed"
@@ -274,15 +292,16 @@ else:
 if not os.path.exists(fold):
     save_wav_to_png(USE_KFOLD_VALID)
 
-X_data, Y_data = load_spectograms()
 
 
-train_CNN(X_data, Y_data, TEST_PORTION)
+if USE_KFOLD_VALID:
+    test_a()
+else:
+    X_data, Y_data = load_spectograms()
+    train_CNN(X_data, Y_data, TEST_PORTION)
 
 
 now = datetime.now()
 current_time = now.strftime("%H:%M:%S")
 print("Done! at: ", current_time)
-
-
 
