@@ -15,6 +15,7 @@
 # Basic Libraries
 import pandas as pd
 import numpy as np
+import tensorflow as tf
 
 
 # Libraries for Classification and building Models
@@ -22,6 +23,7 @@ from tensorflow import keras
 from tensorflow.keras import callbacks
 
 # Project Specific Libraries
+import gc
 import os
 import librosa
 import librosa.display
@@ -30,25 +32,30 @@ import torch
 from datetime import datetime
 import cv2
 import sklearn
+from sklearn.metrics import accuracy_score
+from numpy import random
 
 # User defined modules
 from visualise import *
 from cnn_model import get_cnn
 
 
+#------------------ Normal work -----------------------
 
+def train_kFold(use_chaged_speed):
+    """
+    Train and evaluate model via 10-Folds cross-validation
 
-def test_a():
-    from sklearn.metrics import accuracy_score
-    import gc
-
-    ### Train and evaluate via 10-Folds cross-validation ###
+    Args:
+        use_chaged_speed ([type=bool]): If changed speed audio is used
+    """
     accuracies = np.zeros((CLASSES_CNT, 1))
     
     folds_cnt = np.zeros(CLASSES_CNT, dtype=int)
     for i in range(0, DATA_SAMPLES_CNT):
          folds_cnt[df["fold"][i] -1 ]  =  folds_cnt[df["fold"][i] -1] + 1
          
+             
     # 10-fold cross validation
     for test_index in range(0, 10):
         print("Using " + str(test_index) + " fold out of 10")
@@ -61,7 +68,10 @@ def test_a():
         train_i = 0
         
         for i in range(0, DATA_SAMPLES_CNT):
-            image_path = "processed//fold" + str(df["fold"][i]) + "//out" + str(i+1) + "_" + str(df["class"][i]) + ".png"
+            if (test_index != (df["fold"][i]-1)) and (use_chaged_speed):
+                image_path = "speed//fold" + str(df["fold"][i]) + "//out" + str(i+1) + "_" + str(df["class"][i]) + ".png"
+            else:
+                image_path = "processed//fold" + str(df["fold"][i]) + "//out" + str(i+1) + "_" + str(df["class"][i]) + ".png"
             image= cv2.imread(image_path, cv2.COLOR_BGR2RGB)
             if image is None:
                 print("Error, image was not found from: " + image_path)
@@ -77,7 +87,7 @@ def test_a():
                 x_train[train_i] = image 
                 y_train[train_i] = df["classID"][i]
                 train_i = train_i + 1
-            
+                
         model = get_cnn(IMG_HEIGHT, IMG_WIDTH, CLASSES_CNT)
         
         x_train = x_train.reshape(x_train.shape[0], IMG_HEIGHT, IMG_WIDTH, 1)
@@ -86,36 +96,31 @@ def test_a():
         train_labels = keras.utils.to_categorical(y_train, num_classes=CLASSES_CNT)
         test_labels = keras.utils.to_categorical(y_test, num_classes=CLASSES_CNT)
         
-        model.fit(x_train, train_labels, epochs = 25, batch_size = 32, verbose = 1)
+        earlystopper = callbacks.EarlyStopping(patience=7, verbose=1, monitor='val_accuracy')
+        checkpointer = callbacks.ModelCheckpoint('models\\k_urban_model.h5', verbose=1, monitor='val_accuracy', save_best_only=True)
+        model.fit(x_train, train_labels, epochs = 40, batch_size = 64, verbose = 1, validation_data=(x_test, test_labels), callbacks = [earlystopper, checkpointer])
 
-
+    
+        model = keras.models.load_model('models\\k_urban_model.h5')
         pred = model.predict(x_test)
         y_pred = np.argmax(pred, axis=1) 
         rounded_labels=np.argmax(test_labels, axis=1)
         accuracies[test_index] = accuracy_score(rounded_labels, y_pred)
+        print("Temp k-Folds Accuracy: {0}".format(np.mean(accuracies)))
         
         # TODO FIX: deallocating memory manually for now :(
         del x_train
         del y_train
+        del train_labels
+        del test_labels
         del x_test
         del y_test
+        del pred
+        del y_pred
+        del rounded_labels
         
     print("Average 10 Folds Accuracy: {0}".format(np.mean(accuracies)))
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-#------------------ Normal work -----------------------
 
 def pad_trunc(sig, sr, max_ms):
     """
@@ -202,6 +207,40 @@ def save_wav_to_png(use_Kfold = False):
         spectrogram_image(y=window, sr=sr, out_dir=dir_name , out_name=img_name, hop_length=hop_length, n_mels=n_mels)
     print("Done saving pictures!")
     
+    
+def save_stretched_wav_to_png():
+    """ 
+    Saves spectograms data from sound files as png pictures but at random speed-up or slow-down sound
+    """
+    print("Saving stretched pictures to drive")
+    for i in range(DATA_SAMPLES_CNT):
+        file_name = BASE_PATH  + "//audio//fold" + str(df["fold"][i]) + '//' + df["slice_file_name"][i]
+        # Here kaiser_fast is a technique used for faster extraction
+        y, sr = librosa.load(file_name, res_type='kaiser_fast') 
+        
+        img_name = 'out' + str(i+1) + "_" + str(df["class"][i]) + '.png'
+        hop_length = 512           # number of samples per time-step in spectrogram
+        n_mels = IMG_HEIGHT        # number of bins in spectrogram. Height of image
+        time_steps = IMG_WIDTH - 1 # number of time-steps. Width of image (TODO FIX it add 1 px to width!!)
+        
+        # changing speed!!!!
+        y = librosa.effects.time_stretch(y, random.randint(4,17)*0.1)
+        
+        y = librosa.util.utils.fix_length(y, 88200)
+
+        start_sample = 0 # starting at beginning
+        length_samples = time_steps * hop_length
+        window = y[start_sample:start_sample+length_samples]
+
+        dir_name = "speed//fold" + str(df["fold"][i])
+        
+        spectrogram_image(y=window, sr=sr, out_dir=dir_name , out_name=img_name, hop_length=hop_length, n_mels=n_mels)
+    print("Done saving pictures!")
+    
+    
+     
+    
+    
 
 def load_spectograms():
     """ 
@@ -272,6 +311,10 @@ TEST_PORTION = 0.25
 IMG_HEIGHT = 64
 IMG_WIDTH = 128
 
+start_time = datetime.now().strftime("%H:%M:%S")
+tf.random.set_seed(0)
+np.random.seed(0)
+
 df = pd.read_csv("Urband_sounds//UrbanSound8K//metadata//UrbanSound8K.csv")
 if DEBUG_MODE:
     print(df.head())
@@ -282,7 +325,6 @@ if DEBUG_MODE:
     
     
 
-
 if USE_KFOLD_VALID:
     fold = "processed"
 else:
@@ -291,17 +333,16 @@ else:
 # suppose existanse of images folder shows that there is data   NOW THIS APPPORACH IS RETARDED
 if not os.path.exists(fold):
     save_wav_to_png(USE_KFOLD_VALID)
-
-
+    
+if not os.path.exists("speed"):
+    save_stretched_wav_to_png()
 
 if USE_KFOLD_VALID:
-    test_a()
+    train_kFold(True)
 else:
     X_data, Y_data = load_spectograms()
     train_CNN(X_data, Y_data, TEST_PORTION)
 
 
-now = datetime.now()
-current_time = now.strftime("%H:%M:%S")
-print("Done! at: ", current_time)
-
+print("Started at: ", start_time)
+print("Done! at: ", datetime.now().strftime("%H:%M:%S"))
