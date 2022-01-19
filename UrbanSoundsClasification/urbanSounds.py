@@ -1,15 +1,13 @@
 # Basic implementation of UrbanSound8K dataset classification
-# Using 75/25 train/test spilt achieved ~90-92% val. acc. (TODO for proper validation need
-#   to make: "Use the predefined 10 folds and perform 10-fold (not 5-fold) cross validation")
-# To get better result could try to combine multiple spectral features, for exemple Mel spectram, chromagram or tonnetz.
-
+# Using 75/25 train/test spilt achieved ~90-92% val. acc. 
+# 10 folds cross validation ~72% acc.
 # Based on: https://towardsdatascience.com/audio-deep-learning-made-simple-sound-classification-step-by-step-cebc936bbe5
 
 ''' TODO:
    - Properly resize audio samples
    - Add Time Shift (optional?) https://towardsdatascience.com/audio-deep-learning-made-simple-part-3-data-preparation-and-augmentation-24c6e1f6b52
    - Update model structure to get better results
-   - Check model fit cb early stoper api
+   - To get better result could try to combine multiple spectral features, for exemple Mel spectram, chromagram or tonnetz.
 '''
 
 # Basic Libraries
@@ -172,7 +170,6 @@ def spectrogram_image(y, sr, out_dir, out_name, hop_length, n_mels):
     
     cv2.imwrite((out_dir + "\\" + out_name), img)
     
-    
 def save_wav_to_png(use_Kfold = False):
     """ 
     Saves spectograms data from sound files as png pictures
@@ -207,7 +204,6 @@ def save_wav_to_png(use_Kfold = False):
         spectrogram_image(y=window, sr=sr, out_dir=dir_name , out_name=img_name, hop_length=hop_length, n_mels=n_mels)
     print("Done saving pictures!")
     
-    
 def save_stretched_wav_to_png():
     """ 
     Saves spectograms data from sound files as png pictures but at random speed-up or slow-down sound
@@ -237,11 +233,6 @@ def save_stretched_wav_to_png():
         spectrogram_image(y=window, sr=sr, out_dir=dir_name , out_name=img_name, hop_length=hop_length, n_mels=n_mels)
     print("Done saving pictures!")
     
-    
-     
-    
-    
-
 def load_spectograms():
     """ 
     Loads images to RAM from folder.
@@ -257,7 +248,7 @@ def load_spectograms():
 
     for i in range(0, DATA_SAMPLES_CNT):
         image_path = "img_save//" + "out" + str(i+1) + "_" + str(df["class"][i]) + ".png"
-        image= cv2.imread(image_path, cv2.COLOR_BGR2RGB) # TODO tikrai toks color map???????
+        image= cv2.imread(image_path, cv2.COLOR_BGR2RGB) # TODO FIX: check color map
         # image= cv2.imread(image_path)
         if image is None:
             print("Error, image was not found from: " + image_path)
@@ -269,7 +260,6 @@ def load_spectograms():
         img_data_array[i] = image 
         class_name[i] = cla[i]  
     return img_data_array, class_name
-
 
 def train_CNN(X, Y, test_portion = 0.25):
     """ 
@@ -291,18 +281,17 @@ def train_CNN(X, Y, test_portion = 0.25):
     model = get_cnn(IMG_HEIGHT, IMG_WIDTH, CLASSES_CNT)
     model.summary()
 
-    # earlystopper = callbacks.EarlyStopping(patience=7, verbose=1, monitor='accuracy')
+    earlystopper = callbacks.EarlyStopping(patience=9, verbose=1, monitor='val_accuracy')
     checkpointer = callbacks.ModelCheckpoint('models\\urban_model.h5', verbose=1, save_best_only=True)
     
-    # hist = model.fit(x_train, train_labels, batch_size=128, epochs=100, verbose=1, validation_data=(x_test, test_labels), callbacks = [earlystopper, checkpointer])
-    hist = model.fit(x_train, train_labels, batch_size=128, epochs=30, verbose=1, validation_data=(x_test, test_labels), callbacks = [ checkpointer])
+    hist = model.fit(x_train, train_labels, batch_size=128, epochs=100, verbose=1, validation_data=(x_test, test_labels), callbacks = [earlystopper, checkpointer])
     draw_model_results(hist)
-    log_confusion_matrix(model, x_test, y_test) # Note that here you use last model not the one saved!
+    log_confusion_matrix(model, x_test, y_test) #TODO FIX: Note that here you use last model not the one saved!
     
     
 # ----------------------- MAIN ------------------
 DEBUG_MODE = False
-USE_KFOLD_VALID = True
+USE_KFOLD_VALID = False
 
 BASE_PATH = "Urband_sounds//UrbanSound8K"
 DATA_SAMPLES_CNT = 8732
@@ -323,7 +312,6 @@ if DEBUG_MODE:
     show_mel_img(BASE_PATH, IMG_HEIGHT)
     plot_wave_from_audio(df, BASE_PATH)
     
-    
 
 if USE_KFOLD_VALID:
     fold = "processed"
@@ -338,7 +326,7 @@ if not os.path.exists("speed"):
     save_stretched_wav_to_png()
 
 if USE_KFOLD_VALID:
-    train_kFold(True)
+    train_kFold(use_chaged_speed=False)
 else:
     X_data, Y_data = load_spectograms()
     train_CNN(X_data, Y_data, TEST_PORTION)

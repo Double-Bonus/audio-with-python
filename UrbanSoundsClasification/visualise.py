@@ -1,6 +1,5 @@
 # File for handling plots and visualising data
 
-
 import sklearn
 import matplotlib.pyplot as plt
 import numpy as np
@@ -68,7 +67,6 @@ def log_confusion_matrix(model, test_images, test_labels):
   # Log the confusion matrix as an image summary.
   _plot_confusion_matrix(cm, class_names=class_names)
   
-  
 def draw_model_results(model_history):
   plt.subplot(121)
   plt.plot(model_history.history['accuracy'], 'r')
@@ -133,7 +131,6 @@ def show_diff_classes(df, base_path):
       plt.title(cla[i])
   plt.show()
 
-
 def show_mel_img(base_path, img_h):  
   """
   Function shows mel-spectogram of audio file
@@ -148,7 +145,6 @@ def show_mel_img(base_path, img_h):
   plt.colorbar(format='%+2.0f dB')
   plt.title('Mel spectrogram')
   plt.show()
-
 
 def plot_wave_from_audio(df, base_path):
   """ 
