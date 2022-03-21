@@ -25,7 +25,6 @@ import gc
 import os
 import librosa
 import librosa.display
-import skimage.io
 import torch
 from datetime import datetime
 import cv2

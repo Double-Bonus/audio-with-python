@@ -83,15 +83,21 @@ def draw_model_results(model_history):
   plt.grid(b=True)
   plt.show()
     
-def show_basic_data(base_path):
+def show_basic_data(base_path, useEsc50 = False):
   """
   Plot Linear-frequency power spectrogram for audio files
 
   Args:
       base_path : path to UrbandSounds8K db
+      useEsc50: Flag if working with Esc50 dataset
   """
-  dat1, sampling_rate1 = librosa.load(base_path + "//audio//fold5//100032-3-0-0.wav")
-  dat2, sampling_rate2 = librosa.load(base_path + "//audio//fold5//100263-2-0-117.wav")
+  if useEsc50:
+    print("Showing esc50 dataset")
+    dat1, sampling_rate1 = librosa.load(base_path + "//audio//1-34497-A-14.wav")
+    dat2, sampling_rate2 = librosa.load(base_path + "//audio//1-50661-A-44.wav")
+  else:
+    dat1, sampling_rate1 = librosa.load(base_path + "//audio//fold5//100032-3-0-0.wav")
+    dat2, sampling_rate2 = librosa.load(base_path + "//audio//fold5//100263-2-0-117.wav")
   plt.figure(figsize=(_WINDOW_HEIGHT, _WINDOW_WIDTH))
   D = librosa.amplitude_to_db(np.abs(librosa.stft(dat1)), ref=np.max)
   plt.subplot(4, 2, 1)
