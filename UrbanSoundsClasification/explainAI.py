@@ -14,11 +14,10 @@ import cv2
 import pandas as pd
 
 
-
 IMG_HEIGHT = 64
 IMG_WIDTH = 128
-DATA_SAMPLES_CNT = 4
-Start_Sample = 64
+DATA_SAMPLES_CNT = 8732
+Start_Sample = 0 # ofset if I'm using all images
 df = pd.read_csv("Urband_sounds//UrbanSound8K//metadata//UrbanSound8K.csv")
 
 
@@ -75,25 +74,29 @@ def testAi():
     explainer = AnchorImage(predict_fn, image_shape, segmentation_fn=segmentation_fn,
                             segmentation_kwargs=kwargs, images_background=None)
 
-    for i in range(0,4):
+    for i in range(0, DATA_SAMPLES_CNT):
         plt.imshow(X_data[i]);
 
         image = X_data[i]
         np.random.seed(0)
         print(image.shape)
         
-        
-        
-        
         explanation = explainer.explain(image, threshold=.95, p_sample=.5, tau=0.25)
-
-
+        
+        # plt.imshow(explanation.anchor);
+        # plt.show()
+        # plt.imshow(explanation.segments);
+        # plt.show()
+        plt.figure(figsize=(80, 80))
+        plt.title("Model explanation using 'ALIBI EXPLAIN' API of audio nr: " + str(i + 1))
+        plt.subplot(121)
         plt.imshow(explanation.anchor);
-        plt.show()
+        plt.subplot(122)
         plt.imshow(explanation.segments);
-        plt.show()
-
-
-
+        savePath = 'XaiRes/explainAudio_' + str(i + 1) + '.png'
+        plt.savefig(savePath)
+        
+        
+        
 
 testAi()
