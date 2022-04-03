@@ -87,14 +87,14 @@ def testAi():
         # plt.show()
         # plt.imshow(explanation.segments);
         # plt.show()
-        plt.figure(figsize=(80, 80))
         plt.title("Model explanation using 'ALIBI EXPLAIN' API of audio nr: " + str(i + 1))
-        plt.subplot(121)
         plt.imshow(explanation.anchor);
-        plt.subplot(122)
+        savePath_a = 'XaiRes/explainAudio_' + str(i + 1) + '_a' + '.png'
+        plt.savefig(savePath_a)
+        
         plt.imshow(explanation.segments);
-        savePath = 'XaiRes/explainAudio_' + str(i + 1) + '.png'
-        plt.savefig(savePath)
+        savePath_b = 'XaiRes/explainAudio_' + str(i + 1) + '_b' + '.png'
+        plt.savefig(savePath_b)
         
         
         
