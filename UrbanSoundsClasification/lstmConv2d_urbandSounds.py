@@ -14,18 +14,20 @@ import cv2, librosa, os
 BASE_PATH = "Urband_sounds//UrbanSound8K"
 DATA_SAMPLES_CNT = 8732
 CLASSES_CNT = 10
+FRAME_CNT = 8 # number of frames for lstm
 TEST_PORTION = 0.25
 IMG_HEIGHT = 64
 IMG_WIDTH = 128
 df = pd.read_csv("Urband_sounds//UrbanSound8K//metadata//UrbanSound8K.csv")
 
-
+if IMG_WIDTH % FRAME_CNT != 0:
+    print("ERROR: IMG_WIDTH must be divisible by FRAME_CNT")
+    exit()
 
 def scale_minmax(X, min=0.0, max=1.0):
     X_std = (X - X.min()) / (X.max() - X.min())
     X_scaled = X_std * (max - min) + min
     return X_scaled
-
 
 def spectrogram_image(y, sr, out_dir, out_name, hop_length, n_mels):
     # use log-melspectrogram
@@ -76,31 +78,31 @@ def save_wav_to_png(use_Kfold = False):
         if use_Kfold:
             dir_name = "processed//fold" + str(df["fold"][i])
         else:
-            dir_name = "img_save_lstmCnn"
+            dir_name = "img_save_lstmCnn_f" + str(FRAME_CNT)
             
-        a_win = window[:len(window)//2]
-        b_win = window[len(window)//2:]
-        img_name_a = 'out' + str(i+1) + "_" + str(df["class"][i]) + 'a' + '.png'
-        img_name_b = 'out' + str(i+1) + "_" + str(df["class"][i]) + 'b' + '.png'
-        
-        
-        spectrogram_image(y=a_win, sr=sr, out_dir=dir_name , out_name=img_name_a, hop_length=hop_length, n_mels=n_mels)
-        spectrogram_image(y=b_win, sr=sr, out_dir=dir_name , out_name=img_name_b, hop_length=hop_length, n_mels=n_mels)
+        if FRAME_CNT == 2:    
+            a_win = window[:len(window)//FRAME_CNT]
+            b_win = window[len(window)//FRAME_CNT:]
+            img_name_a = 'out' + str(i+1) + "_" + str(df["class"][i]) + 'a' + '.png'
+            img_name_b = 'out' + str(i+1) + "_" + str(df["class"][i]) + 'b' + '.png'
+            spectrogram_image(y=a_win, sr=sr, out_dir=dir_name , out_name=img_name_a, hop_length=hop_length, n_mels=n_mels)
+            spectrogram_image(y=b_win, sr=sr, out_dir=dir_name , out_name=img_name_b, hop_length=hop_length, n_mels=n_mels)
+        elif FRAME_CNT == 8:
+            imgParts = np.array_split(window, FRAME_CNT)
+            names = ["a", "b", "c", "d", "e", "f", "g", "h"]
+            indx = 0
+            for part in imgParts:
+                part_name = "out" + str(i+1) + "_" + str(df["class"][i]) + names[indx] + ".png"
+                spectrogram_image(y=part, sr=sr, out_dir=dir_name , out_name=part_name, hop_length=hop_length, n_mels=n_mels)
+                indx = indx + 1
+        else:
+            print("ERROR: FRAME_CNT must be 2 or 8")
+            exit()    
+            
+            
+            
+            
     print("Done saving pictures!")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 def load_spectograms():
     """ 
@@ -110,19 +112,15 @@ def load_spectograms():
         Images arrau and class_name for y values
     """
     print("Loading images from drive to RAM!")
-    img_data_array = np.zeros((DATA_SAMPLES_CNT, 2, IMG_HEIGHT, (IMG_WIDTH // 2)))
-    # img_data_array = np.zeros((DATA_SAMPLES_CNT, 2, IMG_HEIGHT, (IMG_WIDTH / 2))) # TODO: AR TAIP???
+    img_data_array = np.zeros((DATA_SAMPLES_CNT, FRAME_CNT, IMG_HEIGHT, (IMG_WIDTH // FRAME_CNT)))
     class_name = np.zeros((DATA_SAMPLES_CNT, 1))
     
     cla = np.array(df["classID"]) # TODO: FIX suppose its global
-
+    names = ["a", "b", "c", "d", "e", "f", "g", "h"]
     for i in range(0, DATA_SAMPLES_CNT):
-        for j in range(0, 2): # number of images to lstm
-            if j == 0: # TODO: this is retarded :)
-                ext = "a"
-            else:
-                ext = "b"
-            image_path = "img_save_lstmCnn//" + "out" + str(i+1) + "_" + str(df["class"][i]) + ext + ".png"
+        for j in range(0, FRAME_CNT): # number of images to lstm
+            ext = names[j]
+            image_path = "img_save_lstmCnn_f" + str(FRAME_CNT) + "//out" + str(i+1) + "_" + str(df["class"][i]) + ext + ".png"
             image= cv2.imread(image_path, cv2.COLOR_BGR2RGB) # TODO FIX: check color map
             # image= cv2.imread(image_path)
             if image is None:
@@ -150,7 +148,14 @@ def train(x_train, y_train, x_test, y_test, num_classes, epochs):
     y_train = keras.utils.to_categorical(y_train, num_classes)
     y_test = keras.utils.to_categorical(y_test, num_classes)
 
-    stage = 1
+
+    # 0 - Small model, train time 0:40 min / epoch
+    # 1 - 10x more params, really long train time 1:40 min / epoch
+    # 2 - Fastest train time, 2x params as model-0, 0:10 min / epoch, Average acc, ~0.85
+    # 3 - Smaller network, deleted one conv layer bc image is too small, acc. 86-88
+    # 4 - 86
+
+    stage = -1
     if stage == 0:
         lstm = Sequential()
         lstm.add(ConvLSTM2D(8, kernel_size=(3, 3), strides=(1, 1), activation='elu', input_shape=(x_train.shape[1], x_train.shape[2], x_train.shape[3], x_train.shape[4])))
@@ -161,6 +166,20 @@ def train(x_train, y_train, x_test, y_test, num_classes, epochs):
         lstm.add(Dropout(0.25))
         lstm.add(Conv2D(32, kernel_size=(3, 3), strides=(1, 1), activation='elu'))
         lstm.add(MaxPooling2D(pool_size=(2, 2)))
+        lstm.add(Dropout(0.25))
+        lstm.add(Flatten())
+        lstm.add(Dense(32, activation='elu'))
+        lstm.add(Dense(num_classes, activation='softmax'))
+    if stage == -1:
+        lstm = Sequential()
+        lstm.add(ConvLSTM2D(8, kernel_size=(3, 3), strides=(1, 1), activation='elu', input_shape=(x_train.shape[1], x_train.shape[2], x_train.shape[3], x_train.shape[4])))
+        lstm.add(MaxPooling2D(pool_size=(2, 2)))
+        lstm.add(Dropout(0.25))
+        lstm.add(Conv2D(16, kernel_size=(3, 3), strides=(1, 1), activation='elu'))
+        lstm.add(MaxPooling2D(pool_size=(2, 1)))
+        lstm.add(Dropout(0.25))
+        lstm.add(Conv2D(32, kernel_size=(3, 3), strides=(1, 1), activation='elu'))
+        lstm.add(MaxPooling2D(pool_size=(2, 1)))
         lstm.add(Dropout(0.25))
         lstm.add(Flatten())
         lstm.add(Dense(32, activation='elu'))
@@ -181,7 +200,7 @@ def train(x_train, y_train, x_test, y_test, num_classes, epochs):
         lstm.add(Dropout(0.25))
         lstm.add(Flatten())
         lstm.add(Dense(num_classes, activation='softmax'))
-    else:
+    elif stage == 2: 
         cnn = Sequential()
         cnn.add(Conv2D(8, kernel_size=(3, 3), strides=(1, 1), activation='elu', input_shape=(x_train.shape[2], x_train.shape[3], x_train.shape[4])))
         cnn.add(BatchNormalization())
@@ -201,6 +220,43 @@ def train(x_train, y_train, x_test, y_test, num_classes, epochs):
         lstm.add(TimeDistributed(cnn, input_shape=(x_train.shape[1], x_train.shape[2], x_train.shape[3], x_train.shape[4])))
         lstm.add(LSTM(16, dropout=0.0, recurrent_dropout=0.0))
         lstm.add(Dense(num_classes, activation='softmax'))
+    elif stage == 3: 
+        cnn = Sequential()
+        cnn.add(Conv2D(8, kernel_size=(3, 3), strides=(1, 1), activation='elu', input_shape=(x_train.shape[2], x_train.shape[3], x_train.shape[4])))
+        cnn.add(BatchNormalization())
+        cnn.add(MaxPooling2D(pool_size=(2, 3)))
+        cnn.add(Dropout(0.25))        
+        cnn.add(Conv2D(32, kernel_size=(3, 3), strides=(1, 1), activation='elu'))
+        cnn.add(BatchNormalization())
+        cnn.add(MaxPooling2D(pool_size=(2, 2)))
+        cnn.add(Dropout(0.25))
+        cnn.add(Flatten())
+
+        lstm = Sequential()
+        lstm.add(TimeDistributed(cnn, input_shape=(x_train.shape[1], x_train.shape[2], x_train.shape[3], x_train.shape[4])))
+        lstm.add(LSTM(16, dropout=0.0, recurrent_dropout=0.0))
+        lstm.add(Dense(num_classes, activation='softmax'))
+    else:
+        cnn = Sequential()
+        cnn.add(Conv2D(8, kernel_size=(3, 3), strides=(1, 1), activation='elu', input_shape=(x_train.shape[2], x_train.shape[3], x_train.shape[4])))
+        cnn.add(BatchNormalization())
+        cnn.add(MaxPooling2D(pool_size=(3, 2)))
+        cnn.add(Dropout(0.1))
+        cnn.add(Conv2D(16, kernel_size=(3, 3), strides=(1, 1), activation='elu'))
+        cnn.add(BatchNormalization())
+        cnn.add(MaxPooling2D(pool_size=(2, 1)))
+        cnn.add(Dropout(0.1))
+        cnn.add(Conv2D(32, kernel_size=(3, 3), strides=(1, 1), activation='elu'))
+        cnn.add(BatchNormalization())
+        cnn.add(MaxPooling2D(pool_size=(2, 1)))
+        cnn.add(Dropout(0.5))
+        cnn.add(Flatten())
+
+        lstm = Sequential()
+        lstm.add(TimeDistributed(cnn, input_shape=(x_train.shape[1], x_train.shape[2], x_train.shape[3], x_train.shape[4])))
+        lstm.add(LSTM(16, dropout=0.0, recurrent_dropout=0.0))
+        lstm.add(Dense(num_classes, activation='softmax'))
+        
 
     # summarize model
     try:        cnn.summary()
@@ -228,10 +284,13 @@ def train(x_train, y_train, x_test, y_test, num_classes, epochs):
     
     
 ################################################################
-if not os.path.exists("img_save_lstmCnn"):
+
+
+
+if not os.path.exists("img_save_lstmCnn_f" + str(FRAME_CNT)):
     save_wav_to_png()
     
 X_data, Y_data = load_spectograms()
-x_train, x_test, y_train, y_test = sklearn.model_selection.train_test_split(X_data, Y_data, test_size=0.25, random_state=7)
+x_train, x_test, y_train, y_test = sklearn.model_selection.train_test_split(X_data, Y_data, test_size=TEST_PORTION, random_state=7)
     
 train(x_train, y_train, x_test, y_test, CLASSES_CNT, epochs=100)

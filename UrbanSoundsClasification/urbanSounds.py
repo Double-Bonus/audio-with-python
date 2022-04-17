@@ -34,7 +34,7 @@ from numpy import random
 
 # User defined modules
 from visualise import *
-from cnn_model import get_cnn
+from cnn_model import *
 
 
 #------------------ Normal work -----------------------
@@ -54,8 +54,9 @@ def train_kFold(use_chaged_speed):
          
              
     # 10-fold cross validation
-    for test_index in range(0, 10):
-        print("Using " + str(test_index) + " fold out of 10")
+    kfoldsCnt = 1
+    for test_index in range(0, kfoldsCnt):
+        print("Using " + str(test_index+1) + " fold out of: " + str(kfoldsCnt))
         gc.collect()
         x_train = np.zeros((DATA_SAMPLES_CNT - folds_cnt[test_index], IMG_HEIGHT, IMG_WIDTH))
         y_train = np.zeros((DATA_SAMPLES_CNT - folds_cnt[test_index], 1))
@@ -85,7 +86,9 @@ def train_kFold(use_chaged_speed):
                 y_train[train_i] = df["classID"][i]
                 train_i = train_i + 1
                 
-        model = get_cnn(IMG_HEIGHT, IMG_WIDTH, CLASSES_CNT)
+        model = get_cnn_minKernel_noPadding(IMG_HEIGHT, IMG_WIDTH, CLASSES_CNT)
+        model.summary() # comment out if you don't want to see the model summary
+        
         
         x_train = x_train.reshape(x_train.shape[0], IMG_HEIGHT, IMG_WIDTH, 1)
         x_test = x_test.reshape(x_test.shape[0], IMG_HEIGHT, IMG_WIDTH, 1)
@@ -93,9 +96,11 @@ def train_kFold(use_chaged_speed):
         train_labels = keras.utils.to_categorical(y_train, num_classes=CLASSES_CNT)
         test_labels = keras.utils.to_categorical(y_test, num_classes=CLASSES_CNT)
         
-        earlystopper = callbacks.EarlyStopping(patience=7, verbose=1, monitor='val_accuracy')
+        epochsCnt = 200
+        
+        earlystopper = callbacks.EarlyStopping(patience=epochsCnt*0.3, verbose=1, monitor='val_accuracy')
         checkpointer = callbacks.ModelCheckpoint('models\\k_urban_model.h5', verbose=1, monitor='val_accuracy', save_best_only=True)
-        model.fit(x_train, train_labels, epochs = 40, batch_size = 64, verbose = 1, validation_data=(x_test, test_labels), callbacks = [earlystopper, checkpointer])
+        model.fit(x_train, train_labels, epochs = epochsCnt, batch_size = 64, verbose = 1, validation_data=(x_test, test_labels), callbacks = [earlystopper, checkpointer])
 
     
         model = keras.models.load_model('models\\k_urban_model.h5')
@@ -232,7 +237,7 @@ def save_stretched_wav_to_png():
         spectrogram_image(y=window, sr=sr, out_dir=dir_name , out_name=img_name, hop_length=hop_length, n_mels=n_mels)
     print("Done saving pictures!")
     
-def load_spectograms():
+def load_spectograms(folder = "img_save"):
     """ 
     Loads images to RAM from folder.
 
@@ -246,7 +251,7 @@ def load_spectograms():
     cla = np.array(df["classID"]) # TODO FIX suppose its global
 
     for i in range(0, DATA_SAMPLES_CNT):
-        image_path = "img_save//" + "out" + str(i+1) + "_" + str(df["class"][i]) + ".png"
+        image_path = folder + "//out" + str(i+1) + "_" + str(df["class"][i]) + ".png"
         image= cv2.imread(image_path, cv2.COLOR_BGR2RGB) # TODO FIX: check color map
         # image= cv2.imread(image_path)
         if image is None:
@@ -290,7 +295,7 @@ def train_CNN(X, Y, test_portion = 0.25):
     
 # ----------------------- MAIN ------------------
 DEBUG_MODE = False
-USE_KFOLD_VALID = False
+USE_KFOLD_VALID = True
 
 BASE_PATH = "Urband_sounds//UrbanSound8K"
 DATA_SAMPLES_CNT = 8732
@@ -315,7 +320,8 @@ if DEBUG_MODE:
 if USE_KFOLD_VALID:
     fold = "processed"
 else:
-    fold = "img_save"
+    # fold = "img_save"
+    fold = "img_save04_11"
     
 # suppose existanse of images folder shows that there is data   NOW THIS APPPORACH IS RETARDED
 if not os.path.exists(fold):
@@ -327,7 +333,7 @@ if not os.path.exists("speed"):
 if USE_KFOLD_VALID:
     train_kFold(use_chaged_speed=False)
 else:
-    X_data, Y_data = load_spectograms()
+    X_data, Y_data = load_spectograms(fold)
     train_CNN(X_data, Y_data, TEST_PORTION)
 
 
