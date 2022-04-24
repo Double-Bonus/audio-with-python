@@ -9,6 +9,10 @@ import cv2, librosa, os
 from lstm_models import * 
 from functionality import scale_minmax, get_class_weights
 
+# User defined classes
+from datasetsBase import UrbandSound8k
+
+
 
 BASE_PATH = "Urband_sounds//UrbanSound8K"
 DATA_SAMPLES_CNT = 8732
@@ -129,7 +133,7 @@ def load_spectograms():
             class_name[i] = cla[i]  
     return img_data_array, class_name
 
-def train(x_train, y_train, x_test, y_test, num_classes, epochs):
+def train(x_train, y_train, x_test, y_test, num_classes, epochs, verbose = False):
 
     # Customize and print x & y shapes
     x_train = x_train.reshape(x_train.shape[0], x_train.shape[1], x_train.shape[2], x_train.shape[3], 1)
@@ -146,49 +150,34 @@ def train(x_train, y_train, x_test, y_test, num_classes, epochs):
 
     cnn, lstm = get_lstm(x_train, num_classes, 13)
 
-
-    # summarize model
-    try:        cnn.summary()
-    except:     print(" ")
-    finally:    lstm.summary()
+    if verbose:
+        # summarize model
+        try:        cnn.summary()
+        except:     print(" ")
+        finally:    lstm.summary()
 
 
     earlystopper = callbacks.EarlyStopping(patience=epochs*0.35, verbose=1, monitor='val_accuracy')
     checkpointer = callbacks.ModelCheckpoint('models\\lstmModel.h5', verbose=1, monitor='val_accuracy', save_best_only=True)
 
-
-
     # compile, fit, evaluate
     lstm.compile(loss=keras.losses.categorical_crossentropy, optimizer=keras.optimizers.Adam(), metrics = ['accuracy'])
 
-    if 0: # use class wieghts
+    if 1: # use class wieghts
         clsWeight = get_class_weights()
-        lstm.fit(x_train, y_train, batch_size=32, epochs=epochs, verbose=1, validation_data=(x_test, y_test), class_weight = clsWeight,
+        lstm.fit(x_train, y_train, batch_size=32, epochs=epochs, verbose=0, validation_data=(x_test, y_test), class_weight = clsWeight,
             callbacks=[earlystopper, checkpointer])
     else:
-        lstm.fit(x_train, y_train, batch_size=32, epochs=epochs, verbose=1, validation_data=(x_test, y_test), 
+        lstm.fit(x_train, y_train, batch_size=32, epochs=epochs, verbose=0, validation_data=(x_test, y_test), 
             callbacks=[earlystopper, checkpointer])
-    score = lstm.evaluate(x_test, y_test, verbose=1)
-
-    # save model
-    '''model_json = lstm.to_json()
-    with open("Models\\model_cnn2dlstm.json", "w") as json_file:
-        #
-        json_file.write(model_json)
-    lstm.save_weights("Models\\model_cnn2dlstm.h5")'''
-
-    print(' ')
-
-    # return score[1]
+    score = lstm.evaluate(x_test, y_test, verbose=1) 
+    return score[1]  # {'loss': 0.2, 'accuracy': 0.7}.
     
     
     
     
     
 ################################################################
-
-
-
 if not os.path.exists("img_save_lstmCnn_f" + str(FRAME_CNT)):
     save_wav_to_png()
     
@@ -198,33 +187,26 @@ print("The size of a numpy array is: ", X_data.shape)
 print("The size of a numpy array is: ", X_data[0].shape)
 
 if 1: #kfold
-    folds_cnt = np.zeros(CLASSES_CNT, dtype=int)
-    for i in range(0, DATA_SAMPLES_CNT):
-        folds_cnt[df["fold"][i] -1 ]  =  folds_cnt[df["fold"][i] -1] + 1
+    urbandDb = UrbandSound8k(IMG_HEIGHT, IMG_WIDTH) # create class instance for dataset
+    urbandDb.set_frame_cnt(FRAME_CNT)
+    
+    accuracies = np.zeros((urbandDb.CLASSES_CNT, 1))
+    
+    folds_cnt = np.zeros(urbandDb.CLASSES_CNT, dtype=int)
+    for i in range(0, urbandDb.DATA_SAMPLES_CNT):
+         folds_cnt[df["fold"][i] -1 ]  =  folds_cnt[df["fold"][i] -1] + 1
 
-    test_index = 0
-    x_train = np.zeros((DATA_SAMPLES_CNT - folds_cnt[test_index], FRAME_CNT, IMG_HEIGHT, (IMG_WIDTH // FRAME_CNT)))
-    x_test =  np.zeros((folds_cnt[test_index],                     FRAME_CNT, IMG_HEIGHT, (IMG_WIDTH // FRAME_CNT)))
-    y_train = np.zeros((DATA_SAMPLES_CNT - folds_cnt[test_index], 1))
-    y_test =  np.zeros((folds_cnt[test_index], 1))
+    # 10-fold cross validation
+    kfoldsCnt = 10
+    for test_index in range(0, kfoldsCnt):
+        x_train, x_test, y_train, y_test = urbandDb.prepare_data_kFold_LSTM(test_index, kfoldsCnt, folds_cnt, X_data, Y_data)
+        accuracies[test_index] = train(x_train, y_train, x_test, y_test, CLASSES_CNT, epochs=150, verbose=(0 == test_index))
+        print("Temp k-Folds Accuracy: {0}".format(np.mean(accuracies)))
+        
+    print("Average 10 Folds Accuracy: {0}".format(np.mean(accuracies)))
+    print("Standart deviation of accuracy: {0}".format(np.std(accuracies)))
 
-    test_i = 0
-    train_i = 0
-    for i in range(0, DATA_SAMPLES_CNT):
-        if test_index == (df["fold"][i]-1):
-            x_test[test_i] = X_data[i] 
-            y_test[test_i] = Y_data[i]
-            test_i = test_i + 1
-        else:
-            x_train[train_i] = X_data[i] 
-            y_train[train_i] = Y_data[i]
-            train_i = train_i + 1
-
-
-
-    x_train = x_train.reshape(x_train.shape[0],  FRAME_CNT, IMG_HEIGHT, (IMG_WIDTH // FRAME_CNT), 1)
-    x_test =  x_test.reshape( x_test.shape[0],   FRAME_CNT, IMG_HEIGHT, (IMG_WIDTH // FRAME_CNT), 1)
 else:
     x_train, x_test, y_train, y_test = sklearn.model_selection.train_test_split(X_data, Y_data, test_size=TEST_PORTION, random_state=7)
     
-train(x_train, y_train, x_test, y_test, CLASSES_CNT, epochs=150)
+    train(x_train, y_train, x_test, y_test, CLASSES_CNT, epochs=150)

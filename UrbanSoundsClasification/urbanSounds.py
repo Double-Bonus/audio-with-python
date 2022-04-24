@@ -37,62 +37,10 @@ from visualise import *
 from cnn_model import *
 from functionality import scale_minmax, get_class_weights
 
+# User defined classes
+from datasetsBase import UrbandSound8k
 
 #------------------ Normal work -----------------------
-
-class UrbandSound8k:
-    def __init__(self, height = 128, width = 128):
-        self.IMG_HEIGHT = height
-        self.IMG_WIDTH = width
-        self.BASE_PATH = "Urband_sounds//UrbanSound8K"
-        self.DATA_SAMPLES_CNT = 8732
-        self.CLASSES_CNT = 10
-        self.df = pd.read_csv(self.BASE_PATH + "//metadata//UrbanSound8K.csv")
-
-
-
-    def prepare_data_kFold(self, test_index, kfoldsCnt, folds_cnt, use_chaged_speed = False):
-        print("Using " + str(test_index+1) + " fold out of: " + str(kfoldsCnt))
-        gc.collect()
-        x_train = np.zeros((self.DATA_SAMPLES_CNT - folds_cnt[test_index], self.IMG_HEIGHT, self.IMG_WIDTH))
-        y_train = np.zeros((self.DATA_SAMPLES_CNT - folds_cnt[test_index], 1))
-        x_test = np.zeros((folds_cnt[test_index], self.IMG_HEIGHT, self.IMG_WIDTH))
-        y_test = np.zeros((folds_cnt[test_index], 1))
-        test_i = 0
-        train_i = 0
-        
-        for i in range(0, self.DATA_SAMPLES_CNT):
-            if (test_index != (self.df["fold"][i]-1)) and (use_chaged_speed):
-                image_path = "speed//fold" + str(self.df["fold"][i]) + "//out" + str(i+1) + "_" + str(self.df["class"][i]) + ".png"
-            else:
-                image_path = "processed//fold" + str(self.df["fold"][i]) + "//out" + str(i+1) + "_" + str(self.df["class"][i]) + ".png"
-            image= cv2.imread(image_path, cv2.COLOR_BGR2RGB)
-            if image is None:
-                print("Error, image was not found from: " + image_path)
-                quit()
-            image = np.array(image)
-            image = image.astype('float32')
-            image /= 255
-            if test_index == (self.df["fold"][i]-1):
-                x_test[test_i] = image 
-                y_test[test_i] = self.df["classID"][i]
-                test_i = test_i + 1
-            else:
-                x_train[train_i] = image 
-                y_train[train_i] = self.df["classID"][i]
-                train_i = train_i + 1
-                    
-        x_train = x_train.reshape(x_train.shape[0], self.IMG_HEIGHT, self.IMG_WIDTH, 1)
-        x_test = x_test.reshape(x_test.shape[0], self.IMG_HEIGHT, self.IMG_WIDTH, 1)
-        
-        train_labels = keras.utils.to_categorical(y_train, num_classes=self.CLASSES_CNT)
-        test_labels = keras.utils.to_categorical(y_test, num_classes=self.CLASSES_CNT)
-
-        return x_train, x_test, train_labels, test_labels
-
-
-
-
 
 def train_kFold(use_chaged_speed):
     """
@@ -116,11 +64,10 @@ def train_kFold(use_chaged_speed):
     kfoldsCnt = 10
     for test_index in range(0, kfoldsCnt):
 
-
         model = get_cnn_minKernelReg(IMG_HEIGHT, IMG_WIDTH, CLASSES_CNT)
 
         x_train, x_test, train_labels, test_labels = urbandDb.prepare_data_kFold(test_index, kfoldsCnt, folds_cnt)
-        epochsCnt = 100
+        epochsCnt = 150
         earlystopper = callbacks.EarlyStopping(patience=epochsCnt*0.4, verbose=1, monitor='val_accuracy')
         checkpointer = callbacks.ModelCheckpoint('models\\k_urban_model.h5', verbose=1, monitor='val_accuracy', save_best_only=True)
 
@@ -138,17 +85,6 @@ def train_kFold(use_chaged_speed):
         rounded_labels=np.argmax(test_labels, axis=1)
         accuracies[test_index] = accuracy_score(rounded_labels, y_pred)
         print("Temp k-Folds Accuracy: {0}".format(np.mean(accuracies)))
-        
-        # # TODO FIX: deallocating memory manually for now :(
-        # del x_train
-        # del y_train
-        # del train_labels
-        # del test_labels
-        # del x_test
-        # del y_test
-        # del pred
-        # del y_pred
-        # del rounded_labels
         
     print("Average 10 Folds Accuracy: {0}".format(np.mean(accuracies)))
     print("Standart deviation of accuracy: {0}".format(np.std(accuracies)))
