@@ -35,6 +35,7 @@ from numpy import random
 # User defined modules
 from visualise import *
 from cnn_model import *
+from functionality import scale_minmax, get_class_weights
 
 
 #------------------ Normal work -----------------------
@@ -86,7 +87,7 @@ def train_kFold(use_chaged_speed):
                 y_train[train_i] = df["classID"][i]
                 train_i = train_i + 1
                 
-        model = get_cnn_minKernel_noPadding(IMG_HEIGHT, IMG_WIDTH, CLASSES_CNT)
+        model = get_cnn_minKernelReg(IMG_HEIGHT, IMG_WIDTH, CLASSES_CNT)
         model.summary() # comment out if you don't want to see the model summary
         
         
@@ -98,10 +99,17 @@ def train_kFold(use_chaged_speed):
         
         epochsCnt = 200
         
-        earlystopper = callbacks.EarlyStopping(patience=epochsCnt*0.3, verbose=1, monitor='val_accuracy')
+        earlystopper = callbacks.EarlyStopping(patience=epochsCnt*0.4, verbose=1, monitor='val_accuracy')
         checkpointer = callbacks.ModelCheckpoint('models\\k_urban_model.h5', verbose=1, monitor='val_accuracy', save_best_only=True)
-        model.fit(x_train, train_labels, epochs = epochsCnt, batch_size = 64, verbose = 1, validation_data=(x_test, test_labels), callbacks = [earlystopper, checkpointer])
 
+
+        if 1: # use weight for class inbalandce
+            clsWeight = get_class_weights()
+            model.fit(x_train, train_labels, epochs = epochsCnt, batch_size = 128, verbose = 1, class_weight = clsWeight,
+               validation_data=(x_test, test_labels), callbacks = [earlystopper, checkpointer])
+        else:
+            model.fit(x_train, train_labels, epochs = epochsCnt, batch_size = 128, verbose = 1,
+               validation_data=(x_test, test_labels), callbacks = [earlystopper, checkpointer])
     
         model = keras.models.load_model('models\\k_urban_model.h5')
         pred = model.predict(x_test)
@@ -147,11 +155,6 @@ def pad_trunc(sig, sr, max_ms):
         sig = torch.cat((pad_begin, sig, pad_end), 1)
         
     return (sig, sr)
-
-def scale_minmax(X, min=0.0, max=1.0):
-    X_std = (X - X.min()) / (X.max() - X.min())
-    X_scaled = X_std * (max - min) + min
-    return X_scaled
 
 def spectrogram_image(y, sr, out_dir, out_name, hop_length, n_mels):
     # use log-melspectrogram
@@ -301,7 +304,7 @@ BASE_PATH = "Urband_sounds//UrbanSound8K"
 DATA_SAMPLES_CNT = 8732
 CLASSES_CNT = 10
 TEST_PORTION = 0.25
-IMG_HEIGHT = 64
+IMG_HEIGHT = 128
 IMG_WIDTH = 128
 
 start_time = datetime.now().strftime("%H:%M:%S")
@@ -327,8 +330,8 @@ else:
 if not os.path.exists(fold):
     save_wav_to_png(USE_KFOLD_VALID)
     
-if not os.path.exists("speed"):
-    save_stretched_wav_to_png()
+# if not os.path.exists("speed"):
+#     save_stretched_wav_to_png()
 
 if USE_KFOLD_VALID:
     train_kFold(use_chaged_speed=False)

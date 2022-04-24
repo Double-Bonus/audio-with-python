@@ -1,14 +1,13 @@
 from tensorflow import keras
 from keras import metrics, callbacks
-from keras.models import Sequential
-from keras.layers import Dense, Dropout, Flatten
-from keras.layers import Conv2D, MaxPooling2D, BatchNormalization
-from keras.layers import TimeDistributed, LSTM, ConvLSTM2D
 import numpy as np
 import pandas as pd
 import sklearn.model_selection
 import cv2, librosa, os
 
+# user created libs:
+from lstm_models import * 
+from functionality import scale_minmax, get_class_weights
 
 
 BASE_PATH = "Urband_sounds//UrbanSound8K"
@@ -24,10 +23,6 @@ if IMG_WIDTH % FRAME_CNT != 0:
     print("ERROR: IMG_WIDTH must be divisible by FRAME_CNT")
     exit()
 
-def scale_minmax(X, min=0.0, max=1.0):
-    X_std = (X - X.min()) / (X.max() - X.min())
-    X_scaled = X_std * (max - min) + min
-    return X_scaled
 
 def spectrogram_image(y, sr, out_dir, out_name, hop_length, n_mels):
     # use log-melspectrogram
@@ -149,123 +144,30 @@ def train(x_train, y_train, x_test, y_test, num_classes, epochs):
     y_test = keras.utils.to_categorical(y_test, num_classes)
 
 
-    # 0 - Small model, train time 0:40 min / epoch
-    # 1 - 10x more params, really long train time 1:40 min / epoch
-    # 2 - Fastest train time, 2x params as model-0, 0:10 min / epoch, Average acc, ~0.85
-    # 3 - Smaller network, deleted one conv layer bc image is too small, acc. 86-88
-    # 4 - 86
+    cnn, lstm = get_lstm(x_train, num_classes, 13)
 
-    stage = -1
-    if stage == 0:
-        lstm = Sequential()
-        lstm.add(ConvLSTM2D(8, kernel_size=(3, 3), strides=(1, 1), activation='elu', input_shape=(x_train.shape[1], x_train.shape[2], x_train.shape[3], x_train.shape[4])))
-        lstm.add(MaxPooling2D(pool_size=(2, 3)))
-        lstm.add(Dropout(0.25))
-        lstm.add(Conv2D(16, kernel_size=(3, 3), strides=(1, 1), activation='elu'))
-        lstm.add(MaxPooling2D(pool_size=(2, 2)))
-        lstm.add(Dropout(0.25))
-        lstm.add(Conv2D(32, kernel_size=(3, 3), strides=(1, 1), activation='elu'))
-        lstm.add(MaxPooling2D(pool_size=(2, 2)))
-        lstm.add(Dropout(0.25))
-        lstm.add(Flatten())
-        lstm.add(Dense(32, activation='elu'))
-        lstm.add(Dense(num_classes, activation='softmax'))
-    if stage == -1:
-        lstm = Sequential()
-        lstm.add(ConvLSTM2D(8, kernel_size=(3, 3), strides=(1, 1), activation='elu', input_shape=(x_train.shape[1], x_train.shape[2], x_train.shape[3], x_train.shape[4])))
-        lstm.add(MaxPooling2D(pool_size=(2, 2)))
-        lstm.add(Dropout(0.25))
-        lstm.add(Conv2D(16, kernel_size=(3, 3), strides=(1, 1), activation='elu'))
-        lstm.add(MaxPooling2D(pool_size=(2, 1)))
-        lstm.add(Dropout(0.25))
-        lstm.add(Conv2D(32, kernel_size=(3, 3), strides=(1, 1), activation='elu'))
-        lstm.add(MaxPooling2D(pool_size=(2, 1)))
-        lstm.add(Dropout(0.25))
-        lstm.add(Flatten())
-        lstm.add(Dense(32, activation='elu'))
-        lstm.add(Dense(num_classes, activation='softmax'))
-    elif stage == 1:
-        cnn = Sequential()
-        cnn.add(Conv2D(16, kernel_size=(3, 3), strides=(1, 1), activation='relu', input_shape=(x_train.shape[2], x_train.shape[3], x_train.shape[4])))
-        cnn.add(MaxPooling2D(pool_size=(1, 1)))
-        cnn.add(Dropout(0.25))
-        lstm = Sequential()
-        lstm.add(TimeDistributed(cnn, input_shape=(x_train.shape[1], x_train.shape[2], x_train.shape[3], x_train.shape[4])))
-        lstm.add(ConvLSTM2D(16, kernel_size=(3, 3), strides=(1, 1), dropout=0.25, recurrent_dropout=0.25))
-        lstm.add(Conv2D(32, kernel_size=(3, 3), strides=(1, 1), activation='relu'))
-        lstm.add(MaxPooling2D(pool_size=(1, 2)))
-        lstm.add(Dropout(0.25))
-        lstm.add(Conv2D(64, kernel_size=(3, 3), strides=(1, 1), activation='relu'))
-        lstm.add(MaxPooling2D(pool_size=(2, 2)))
-        lstm.add(Dropout(0.25))
-        lstm.add(Flatten())
-        lstm.add(Dense(num_classes, activation='softmax'))
-    elif stage == 2: 
-        cnn = Sequential()
-        cnn.add(Conv2D(8, kernel_size=(3, 3), strides=(1, 1), activation='elu', input_shape=(x_train.shape[2], x_train.shape[3], x_train.shape[4])))
-        cnn.add(BatchNormalization())
-        cnn.add(MaxPooling2D(pool_size=(2, 3)))
-        cnn.add(Dropout(0.25))
-        cnn.add(Conv2D(16, kernel_size=(3, 3), strides=(1, 1), activation='elu'))
-        cnn.add(BatchNormalization())
-        cnn.add(MaxPooling2D(pool_size=(2, 2)))
-        cnn.add(Dropout(0.25))
-        cnn.add(Conv2D(32, kernel_size=(3, 3), strides=(1, 1), activation='elu'))
-        cnn.add(BatchNormalization())
-        cnn.add(MaxPooling2D(pool_size=(2, 2)))
-        cnn.add(Dropout(0.25))
-        cnn.add(Flatten())
-
-        lstm = Sequential()
-        lstm.add(TimeDistributed(cnn, input_shape=(x_train.shape[1], x_train.shape[2], x_train.shape[3], x_train.shape[4])))
-        lstm.add(LSTM(16, dropout=0.0, recurrent_dropout=0.0))
-        lstm.add(Dense(num_classes, activation='softmax'))
-    elif stage == 3: 
-        cnn = Sequential()
-        cnn.add(Conv2D(8, kernel_size=(3, 3), strides=(1, 1), activation='elu', input_shape=(x_train.shape[2], x_train.shape[3], x_train.shape[4])))
-        cnn.add(BatchNormalization())
-        cnn.add(MaxPooling2D(pool_size=(2, 3)))
-        cnn.add(Dropout(0.25))        
-        cnn.add(Conv2D(32, kernel_size=(3, 3), strides=(1, 1), activation='elu'))
-        cnn.add(BatchNormalization())
-        cnn.add(MaxPooling2D(pool_size=(2, 2)))
-        cnn.add(Dropout(0.25))
-        cnn.add(Flatten())
-
-        lstm = Sequential()
-        lstm.add(TimeDistributed(cnn, input_shape=(x_train.shape[1], x_train.shape[2], x_train.shape[3], x_train.shape[4])))
-        lstm.add(LSTM(16, dropout=0.0, recurrent_dropout=0.0))
-        lstm.add(Dense(num_classes, activation='softmax'))
-    else:
-        cnn = Sequential()
-        cnn.add(Conv2D(8, kernel_size=(3, 3), strides=(1, 1), activation='elu', input_shape=(x_train.shape[2], x_train.shape[3], x_train.shape[4])))
-        cnn.add(BatchNormalization())
-        cnn.add(MaxPooling2D(pool_size=(3, 2)))
-        cnn.add(Dropout(0.1))
-        cnn.add(Conv2D(16, kernel_size=(3, 3), strides=(1, 1), activation='elu'))
-        cnn.add(BatchNormalization())
-        cnn.add(MaxPooling2D(pool_size=(2, 1)))
-        cnn.add(Dropout(0.1))
-        cnn.add(Conv2D(32, kernel_size=(3, 3), strides=(1, 1), activation='elu'))
-        cnn.add(BatchNormalization())
-        cnn.add(MaxPooling2D(pool_size=(2, 1)))
-        cnn.add(Dropout(0.5))
-        cnn.add(Flatten())
-
-        lstm = Sequential()
-        lstm.add(TimeDistributed(cnn, input_shape=(x_train.shape[1], x_train.shape[2], x_train.shape[3], x_train.shape[4])))
-        lstm.add(LSTM(16, dropout=0.0, recurrent_dropout=0.0))
-        lstm.add(Dense(num_classes, activation='softmax'))
-        
 
     # summarize model
     try:        cnn.summary()
     except:     print(" ")
     finally:    lstm.summary()
 
+
+    earlystopper = callbacks.EarlyStopping(patience=epochs*0.35, verbose=1, monitor='val_accuracy')
+    checkpointer = callbacks.ModelCheckpoint('models\\lstmModel.h5', verbose=1, monitor='val_accuracy', save_best_only=True)
+
+
+
     # compile, fit, evaluate
     lstm.compile(loss=keras.losses.categorical_crossentropy, optimizer=keras.optimizers.Adam(), metrics = ['accuracy'])
-    lstm.fit(x_train, y_train, batch_size=32, epochs=epochs, verbose=1, validation_data=(x_test, y_test), callbacks=[callbacks.EarlyStopping(monitor='val_accuracy', patience=epochs*0.2, restore_best_weights=True)])
+
+    if 0: # use class wieghts
+        clsWeight = get_class_weights()
+        lstm.fit(x_train, y_train, batch_size=32, epochs=epochs, verbose=1, validation_data=(x_test, y_test), class_weight = clsWeight,
+            callbacks=[earlystopper, checkpointer])
+    else:
+        lstm.fit(x_train, y_train, batch_size=32, epochs=epochs, verbose=1, validation_data=(x_test, y_test), 
+            callbacks=[earlystopper, checkpointer])
     score = lstm.evaluate(x_test, y_test, verbose=1)
 
     # save model
@@ -291,6 +193,38 @@ if not os.path.exists("img_save_lstmCnn_f" + str(FRAME_CNT)):
     save_wav_to_png()
     
 X_data, Y_data = load_spectograms()
-x_train, x_test, y_train, y_test = sklearn.model_selection.train_test_split(X_data, Y_data, test_size=TEST_PORTION, random_state=7)
+
+print("The size of a numpy array is: ", X_data.shape)
+print("The size of a numpy array is: ", X_data[0].shape)
+
+if 1: #kfold
+    folds_cnt = np.zeros(CLASSES_CNT, dtype=int)
+    for i in range(0, DATA_SAMPLES_CNT):
+        folds_cnt[df["fold"][i] -1 ]  =  folds_cnt[df["fold"][i] -1] + 1
+
+    test_index = 0
+    x_train = np.zeros((DATA_SAMPLES_CNT - folds_cnt[test_index], FRAME_CNT, IMG_HEIGHT, (IMG_WIDTH // FRAME_CNT)))
+    x_test =  np.zeros((folds_cnt[test_index],                     FRAME_CNT, IMG_HEIGHT, (IMG_WIDTH // FRAME_CNT)))
+    y_train = np.zeros((DATA_SAMPLES_CNT - folds_cnt[test_index], 1))
+    y_test =  np.zeros((folds_cnt[test_index], 1))
+
+    test_i = 0
+    train_i = 0
+    for i in range(0, DATA_SAMPLES_CNT):
+        if test_index == (df["fold"][i]-1):
+            x_test[test_i] = X_data[i] 
+            y_test[test_i] = Y_data[i]
+            test_i = test_i + 1
+        else:
+            x_train[train_i] = X_data[i] 
+            y_train[train_i] = Y_data[i]
+            train_i = train_i + 1
+
+
+
+    x_train = x_train.reshape(x_train.shape[0],  FRAME_CNT, IMG_HEIGHT, (IMG_WIDTH // FRAME_CNT), 1)
+    x_test =  x_test.reshape( x_test.shape[0],   FRAME_CNT, IMG_HEIGHT, (IMG_WIDTH // FRAME_CNT), 1)
+else:
+    x_train, x_test, y_train, y_test = sklearn.model_selection.train_test_split(X_data, Y_data, test_size=TEST_PORTION, random_state=7)
     
-train(x_train, y_train, x_test, y_test, CLASSES_CNT, epochs=100)
+train(x_train, y_train, x_test, y_test, CLASSES_CNT, epochs=150)
