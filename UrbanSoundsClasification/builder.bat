@@ -7,3 +7,4 @@ python.exe .\lstmConv2d_urbandSounds.py >> logs\outLstmCon2.txt
 
 
 ECHO Finished computation
+pause
