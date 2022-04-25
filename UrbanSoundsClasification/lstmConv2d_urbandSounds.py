@@ -1,9 +1,12 @@
 from tensorflow import keras
-from keras import metrics, callbacks
 import numpy as np
 import pandas as pd
 import sklearn.model_selection
 import cv2, librosa, os
+
+from sklearn.metrics import accuracy_score
+from keras import metrics, callbacks
+
 
 # user created libs:
 from lstm_models import * 
@@ -170,11 +173,14 @@ def train(x_train, y_train, x_test, y_test, num_classes, epochs, verbose = False
     else:
         lstm.fit(x_train, y_train, batch_size=32, epochs=epochs, verbose=0, validation_data=(x_test, y_test), 
             callbacks=[earlystopper, checkpointer])
-    score = lstm.evaluate(x_test, y_test, verbose=1) 
-    return score[1]  # {'loss': 0.2, 'accuracy': 0.7}.
-    
-    
-    
+    # score = lstm.evaluate(x_test, y_test, verbose=1) 
+
+
+    model = keras.models.load_model('models\\lstmModel.h5')
+    pred = model.predict(x_test)
+    y_pred = np.argmax(pred, axis=1) 
+    rounded_labels=np.argmax(y_test, axis=1)
+    return accuracy_score(rounded_labels, y_pred)  
     
     
 ################################################################
