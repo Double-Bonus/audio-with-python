@@ -21,7 +21,6 @@ from tensorflow import keras
 from tensorflow.keras import callbacks
 
 # Project Specific Libraries
-import gc
 import os
 import librosa
 import librosa.display
@@ -249,7 +248,7 @@ def train_CNN(X, Y, test_portion = 0.25):
     earlystopper = callbacks.EarlyStopping(patience=9, verbose=1, monitor='val_accuracy')
     checkpointer = callbacks.ModelCheckpoint('models\\urban_model.h5', verbose=1, save_best_only=True)
     
-    hist = model.fit(x_train, train_labels, batch_size=128, epochs=100, verbose=1, validation_data=(x_test, test_labels), callbacks = [earlystopper, checkpointer])
+    hist = model.fit(x_train, train_labels, batch_size=128, epochs=30, verbose=1, validation_data=(x_test, test_labels), callbacks = [earlystopper, checkpointer])
     draw_model_results(hist)
     log_confusion_matrix(model, x_test, y_test) #TODO FIX: Note that here you use last model not the one saved!
     
@@ -281,8 +280,8 @@ if DEBUG_MODE:
 if USE_KFOLD_VALID:
     fold = "processed"
 else:
-    # fold = "img_save"
-    fold = "img_save04_11"
+    fold = "img_save"
+    # fold = "img_save04_11"
     
 # suppose existanse of images folder shows that there is data   NOW THIS APPPORACH IS RETARDED
 if not os.path.exists(fold):
