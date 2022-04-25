@@ -10,7 +10,7 @@ from keras import metrics, callbacks
 
 # user created libs:
 from lstm_models import * 
-from functionality import scale_minmax, get_class_weights
+from functionality import scale_minmax
 
 # User defined classes
 from datasetsBase import UrbandSound8k
@@ -136,7 +136,7 @@ def load_spectograms():
             class_name[i] = cla[i]  
     return img_data_array, class_name
 
-def train(x_train, y_train, x_test, y_test, num_classes, epochs, verbose = False):
+def train(x_train, y_train, x_test, y_test, urDb, epochs, verbose = False):
 
     # Customize and print x & y shapes
     x_train = x_train.reshape(x_train.shape[0], x_train.shape[1], x_train.shape[2], x_train.shape[3], 1)
@@ -147,11 +147,11 @@ def train(x_train, y_train, x_test, y_test, num_classes, epochs, verbose = False
     print('Shapes: x_train {}, x_test {}, y_train {}, y_test {}'.format(x_train.shape, x_test.shape, y_train.shape, y_test.shape))
 
     # Convert class vectors to binary class matrices
-    y_train = keras.utils.to_categorical(y_train, num_classes)
-    y_test = keras.utils.to_categorical(y_test, num_classes)
+    y_train = keras.utils.to_categorical(y_train, urDb.CLASSES_CNT)
+    y_test = keras.utils.to_categorical(y_test, urDb.CLASSES_CNT)
 
 
-    cnn, lstm = get_lstm(x_train, num_classes, 13)
+    cnn, lstm = get_lstm(x_train, urDb.CLASSES_CNT, 13)
 
     if verbose:
         # summarize model
@@ -167,7 +167,7 @@ def train(x_train, y_train, x_test, y_test, num_classes, epochs, verbose = False
     lstm.compile(loss=keras.losses.categorical_crossentropy, optimizer=keras.optimizers.Adam(), metrics = ['accuracy'])
 
     if 1: # use class wieghts
-        clsWeight = get_class_weights()
+        clsWeight = urDb.get_class_weights()
         lstm.fit(x_train, y_train, batch_size=32, epochs=epochs, verbose=0, validation_data=(x_test, y_test), class_weight = clsWeight,
             callbacks=[earlystopper, checkpointer])
     else:
@@ -206,7 +206,7 @@ if 1: #kfold
     kfoldsCnt = 10
     for test_index in range(0, kfoldsCnt):
         x_train, x_test, y_train, y_test = urbandDb.prepare_data_kFold_LSTM(test_index, kfoldsCnt, folds_cnt, X_data, Y_data)
-        accuracies[test_index] = train(x_train, y_train, x_test, y_test, CLASSES_CNT, epochs=150, verbose=(0 == test_index))
+        accuracies[test_index] = train(x_train, y_train, x_test, y_test, urbandDb, epochs=150, verbose=(0 == test_index))
         print("Temp k-Folds Accuracy: {0}".format(np.mean(accuracies)))
         
     print("Average 10 Folds Accuracy: {0}".format(np.mean(accuracies)))

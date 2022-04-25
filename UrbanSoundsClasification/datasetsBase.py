@@ -16,7 +16,32 @@ class UrbandSound8k:
         self.CLASSES_CNT = 10
         self.df = pd.read_csv(self.BASE_PATH + "//metadata//UrbanSound8K.csv")
         self.FRAME_CNT = 1
+        
+    def get_class_weights(self):
+        """ 
+        Gets class weights for urbanSound8k dataset,
 
+        Should be used in model.fit() as class_weight = clsWeight
+        """
+
+        # all have 1k records except,  car_horn(429), gun_shot(374), siren (929)
+        cl_cnt = [1000, 429, 1000, 1000, 1000, 1000, 374, 1000, 929, 1000]
+        weights = [None] * self.CLASSES_CNT
+        for i in range(self.CLASSES_CNT):
+            weights[i] = (1 / cl_cnt[i]) * (self.DATA_SAMPLES_CNT / self.CLASSES_CNT)
+
+        class_weight = {0: weights[0],
+        1: weights[1],
+        2: weights[2],
+        3: weights[3],
+        4: weights[4],
+        5: weights[5],
+        6: weights[6],
+        7: weights[7],
+        8: weights[8],
+        9: weights[9]
+        }
+        return class_weight
 
 
     def prepare_data_kFold(self, test_index, kfoldsCnt, folds_cnt, use_chaged_speed = False):

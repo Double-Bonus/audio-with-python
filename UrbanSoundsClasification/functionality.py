@@ -14,35 +14,6 @@ from visualise import *
 from cnn_model import *
 
 
-
-
-def get_class_weights():
-    """ 
-    Gets class weights for urbanSound8k dataset,
-
-    Should be used in model.fit() as class_weight = clsWeight
-    """
-    samples_cnt = 8732
-    classes_cnt = 10
-    
-    cl_cnt = [1000, 429, 1000, 1000, 1000, 1000, 374, 1000, 929, 1000]
-    weights = [None] * classes_cnt
-    for i in range(classes_cnt):
-        weights[i] = (1 / cl_cnt[i]) * (samples_cnt / classes_cnt)
-
-    class_weight = {0: weights[0],
-     1: weights[1],
-     2: weights[2],
-     3: weights[3],
-     4: weights[4],
-     5: weights[5],
-     6: weights[6],
-     7: weights[7],
-     8: weights[8],
-     9: weights[9]
-     }
-    return class_weight
-
 def save_wav_to_png(df, DATA_SAMPLES_CNT, BASE_PATH, IMG_HEIGHT, IMG_WIDTH, use_Kfold = False):
     """ 
     Saves spectograms data from sound files as png pictures

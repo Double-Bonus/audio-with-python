@@ -35,7 +35,7 @@ from numpy import random
 # User defined modules
 from visualise import *
 from cnn_model import *
-from functionality import scale_minmax, get_class_weights
+from functionality import scale_minmax
 
 # User defined classes
 from datasetsBase import UrbandSound8k
@@ -72,7 +72,7 @@ def train_kFold(use_chaged_speed):
         checkpointer = callbacks.ModelCheckpoint('models\\k_urban_model.h5', verbose=1, monitor='val_accuracy', save_best_only=True)
 
         if 1: # use weight for class inbalandce
-            clsWeight = get_class_weights()
+            clsWeight = urbandDb.get_class_weights()
             model.fit(x_train, train_labels, epochs = epochsCnt, batch_size = 64, verbose = 0, class_weight = clsWeight,
                validation_data=(x_test, test_labels), callbacks = [earlystopper, checkpointer])
         else:
