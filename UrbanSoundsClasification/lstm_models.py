@@ -259,7 +259,7 @@ def get_lstm(x_train, class_cnt, modelType):
         cnn.add(GlobalAveragePooling2D())
         
         lstm.add(TimeDistributed(cnn, input_shape=(x_train.shape[1], x_train.shape[2], x_train.shape[3], x_train.shape[4])))
-        lstm.add(LSTM(16, dropout=0.0, recurrent_dropout=0.2))
+        lstm.add(LSTM(16, dropout=0.0, recurrent_dropout=0.2)) # makes trainig way longer
 
     elif modelType == 14: # 74.3 acc
         # recurent drop bandm 0.4, nepadidejo zenklaiai
