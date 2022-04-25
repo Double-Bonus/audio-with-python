@@ -73,10 +73,10 @@ def train_kFold(use_chaged_speed):
 
         if 1: # use weight for class inbalandce
             clsWeight = get_class_weights()
-            model.fit(x_train, train_labels, epochs = epochsCnt, batch_size = 128, verbose = 0, class_weight = clsWeight,
+            model.fit(x_train, train_labels, epochs = epochsCnt, batch_size = 64, verbose = 0, class_weight = clsWeight,
                validation_data=(x_test, test_labels), callbacks = [earlystopper, checkpointer])
         else:
-            model.fit(x_train, train_labels, epochs = epochsCnt, batch_size = 128, verbose = 0,
+            model.fit(x_train, train_labels, epochs = epochsCnt, batch_size = 64, verbose = 0,
                validation_data=(x_test, test_labels), callbacks = [earlystopper, checkpointer])
     
         model = keras.models.load_model('models\\k_urban_model.h5')
