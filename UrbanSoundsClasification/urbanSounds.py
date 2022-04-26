@@ -28,16 +28,15 @@ import torch
 from datetime import datetime
 import cv2
 import sklearn
-from sklearn.metrics import accuracy_score
 from numpy import random
 
 # User defined modules
 from visualise import *
 from cnn_model import *
-from functionality import scale_minmax
 
 # User defined classes
 from datasetsBase import UrbandSound8k
+from functionality import Functionality
 
 #------------------ Normal work -----------------------
 
@@ -67,12 +66,12 @@ def train_kFold(use_chaged_speed):
 
         x_train, x_test, train_labels, test_labels = urbandDb.prepare_data_kFold(test_index, kfoldsCnt, folds_cnt)
         epochsCnt = 150
-        earlystopper = callbacks.EarlyStopping(patience=epochsCnt*0.4, verbose=1, monitor='val_accuracy')
+        earlystopper = callbacks.EarlyStopping(patience=epochsCnt*0.3, verbose=1, monitor='val_accuracy')
         checkpointer = callbacks.ModelCheckpoint('models\\k_urban_model.h5', verbose=1, monitor='val_accuracy', save_best_only=True)
 
         if 1: # use weight for class inbalandce
             clsWeight = urbandDb.get_class_weights()
-            model.fit(x_train, train_labels, epochs = epochsCnt, batch_size = 64, verbose = 0, class_weight = clsWeight,
+            model.fit(x_train, train_labels, epochs = epochsCnt, batch_size = 64, verbose = 1, class_weight = clsWeight,
                validation_data=(x_test, test_labels), callbacks = [earlystopper, checkpointer])
         else:
             model.fit(x_train, train_labels, epochs = epochsCnt, batch_size = 64, verbose = 0,
@@ -81,13 +80,16 @@ def train_kFold(use_chaged_speed):
         model = keras.models.load_model('models\\k_urban_model.h5')
         pred = model.predict(x_test)
         y_pred = np.argmax(pred, axis=1) 
-        rounded_labels=np.argmax(test_labels, axis=1)
-        accuracies[test_index] = accuracy_score(rounded_labels, y_pred)
-        print("Temp k-Folds Accuracy: {0}".format(np.mean(accuracies)))
-        
-    print("Average 10 Folds Accuracy: {0}".format(np.mean(accuracies)))
-    print("Standart deviation of accuracy: {0}".format(np.std(accuracies)))
 
+        rounded_labels=np.argmax(test_labels, axis=1) # from one hot to label, right?
+        accuracies[test_index] = Functionality.calculate_accuracy(rounded_labels, y_pred)
+        print("Temp k-Folds Accuracy: {0}".format(np.mean(accuracies)))
+
+        Functionality.calculate_F1score(rounded_labels, y_pred)
+
+        
+    print("\nAverage 10 Folds Accuracy: {0}".format(np.mean(accuracies)))
+    print("Standart deviation of accuracy: {0}".format(np.std(accuracies)))
 
 def pad_trunc(sig, sr, max_ms):
     """
@@ -124,7 +126,7 @@ def spectrogram_image(y, sr, out_dir, out_name, hop_length, n_mels):
         mels = np.mean(mels, axis=0)
 
     # min-max scale to fit inside 8-bit range
-    img = scale_minmax(mels, 0, 255).astype(np.uint8)
+    img = Functionality.scale_minmax(mels, 0, 255).astype(np.uint8)
     img = np.flip(img, axis=0) # put low frequencies at the bottom in image
     img = 255 - img            # invert. make black==more energy
 

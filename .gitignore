@@ -4,3 +4,4 @@ Release
 /build/
 *.gz
 *.bak
+*.txt

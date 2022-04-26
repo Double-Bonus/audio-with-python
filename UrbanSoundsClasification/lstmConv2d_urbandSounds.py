@@ -4,17 +4,15 @@ import pandas as pd
 import sklearn.model_selection
 import cv2, librosa, os
 
-from sklearn.metrics import accuracy_score
 from keras import metrics, callbacks
-
 
 # user created libs:
 from lstm_models import * 
-from functionality import scale_minmax
+
 
 # User defined classes
 from datasetsBase import UrbandSound8k
-
+from functionality import Functionality
 
 
 BASE_PATH = "Urband_sounds//UrbanSound8K"
@@ -42,7 +40,7 @@ def spectrogram_image(y, sr, out_dir, out_name, hop_length, n_mels):
         mels = np.mean(mels, axis=0)
 
     # min-max scale to fit inside 8-bit range
-    img = scale_minmax(mels, 0, 255).astype(np.uint8)
+    img = Functionality.scale_minmax(mels, 0, 255).astype(np.uint8)
     img = np.flip(img, axis=0) # put low frequencies at the bottom in image
     img = 255 - img            # invert. make black==more energy
 
@@ -180,7 +178,7 @@ def train(x_train, y_train, x_test, y_test, urDb, epochs, verbose = False):
     pred = model.predict(x_test)
     y_pred = np.argmax(pred, axis=1) 
     rounded_labels=np.argmax(y_test, axis=1)
-    return accuracy_score(rounded_labels, y_pred)  
+    return Functionality.accuracy_score(rounded_labels, y_pred)  
     
     
 ################################################################

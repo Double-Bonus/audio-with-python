@@ -3,7 +3,7 @@ import numpy as np
 import os
 import cv2
 import sklearn
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, f1_score
 
 from tensorflow import keras
 from tensorflow.keras import callbacks
@@ -12,6 +12,34 @@ from tensorflow.keras import callbacks
 
 from visualise import *
 from cnn_model import *
+
+
+class Functionality:
+    def calculate_accuracy(y_true, y_pred):
+        return accuracy_score(y_true, y_pred)
+
+    def calculate_F1score(y_true, y_pred):
+        av_none = f1_score(y_true, y_pred, average=None)
+        print("Using None average")
+        print(av_none)
+        print(np.mean(av_none))
+
+        av_micro = f1_score(y_true, y_pred, average='micro')
+        print("Using micro average")
+        print(av_micro)
+
+        av_macro = f1_score(y_true, y_pred, average='macro')
+        print("Using macro average")
+        print(av_macro)
+
+        av_weighted = f1_score(y_true, y_pred, average='weighted')
+        print("Using weighted average")
+        print(av_weighted)
+    
+    def scale_minmax(X, min=0.0, max=1.0):
+        X_std = (X - X.min()) / (X.max() - X.min())
+        X_scaled = X_std * (max - min) + min
+        return X_scaled
 
 
 def save_wav_to_png(df, DATA_SAMPLES_CNT, BASE_PATH, IMG_HEIGHT, IMG_WIDTH, use_Kfold = False):
@@ -48,8 +76,7 @@ def save_wav_to_png(df, DATA_SAMPLES_CNT, BASE_PATH, IMG_HEIGHT, IMG_WIDTH, use_
         spectrogram_image(y=window, sr=sr, out_dir=dir_name , out_name=img_name, hop_length=hop_length, n_mels=n_mels)
     print("Done saving pictures!")
     
-    
-    
+      
 def spectrogram_image(y, sr, out_dir, out_name, hop_length, n_mels):
     # use log-melspectrogram
     mels = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=n_mels, n_fft=hop_length*2, hop_length=hop_length)
@@ -61,7 +88,7 @@ def spectrogram_image(y, sr, out_dir, out_name, hop_length, n_mels):
         mels = np.mean(mels, axis=0)
 
     # min-max scale to fit inside 8-bit range
-    img = scale_minmax(mels, 0, 255).astype(np.uint8)
+    img = Functionality.scale_minmax(mels, 0, 255).astype(np.uint8)
     img = np.flip(img, axis=0) # put low frequencies at the bottom in image
     img = 255 - img            # invert. make black==more energy
 
@@ -71,12 +98,6 @@ def spectrogram_image(y, sr, out_dir, out_name, hop_length, n_mels):
     
     cv2.imwrite((out_dir + "\\" + out_name), img)
     
-def scale_minmax(X, min=0.0, max=1.0):
-    X_std = (X - X.min()) / (X.max() - X.min())
-    X_scaled = X_std * (max - min) + min
-    return X_scaled
-
-
 def load_spectograms(df, DATA_SAMPLES_CNT, IMG_HEIGHT, IMG_WIDTH):
     """ 
     Loads images to RAM from folder.
