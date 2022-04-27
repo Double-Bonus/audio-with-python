@@ -302,13 +302,6 @@ def get_simple_cnn_2(img_h, img_w, class_cnt):
 
 
 
-
-
-
-
-
-
-
 #try bigger kernel with zero padding
 def get_cnn_minKernelReg2(img_h, img_w, class_cnt):
     kernelSz = (3, 3)
@@ -356,8 +349,6 @@ def get_cnn_minKernelReg2(img_h, img_w, class_cnt):
     
     model.compile(optimizer='adam', loss=keras.losses.CategoricalCrossentropy(), metrics=['accuracy'])
     return model   
-
-
 
 
 #try more filters
@@ -578,8 +569,6 @@ def get_cnn_minKernelReg5665(img_h, img_w, class_cnt):
     return model
 
 
-
-
 #try something new, 77
 def get_cnn_minKernelReg66(img_h, img_w, class_cnt):
     model = Sequential()
@@ -609,7 +598,7 @@ def get_cnn_minKernelReg66(img_h, img_w, class_cnt):
     model.compile(optimizer='adam', loss=keras.losses.CategoricalCrossentropy(), metrics=['accuracy'])
     return model
 
-#try bigger ;0, 78
+#try bigger, acc 78, trains relly slow
 def get_cnn_minKernelReg6556(img_h, img_w, class_cnt):
     model = Sequential()
 
@@ -637,6 +626,34 @@ def get_cnn_minKernelReg6556(img_h, img_w, class_cnt):
     
     model.compile(optimizer='adam', loss=keras.losses.CategoricalCrossentropy(), metrics=['accuracy'])
     return model
+
+# Change kernel_regularizer=regularizers.l2(1e-3) to kernel_regularizer=regularizers.l2(1e-4)
+def get_cnn_minKernelReg_12(img_h, img_w, class_cnt):
+    model = Sequential()
+
+    # Layer 1
+    model.add(Conv2D(filters=64, kernel_size=5, kernel_regularizer=regularizers.l2(1e-4), activation='relu', input_shape = (img_h, img_w, 1)))
+    model.add(MaxPooling2D((3, 3),strides=3 ))
+
+    # Layer 2
+    model.add(Conv2D(filters=96, kernel_size=4, kernel_regularizer=regularizers.l2(1e-4), activation='relu', padding='valid' ))
+    model.add(MaxPooling2D((2, 2), strides=2 ))
+
+    # Layer 3
+    model.add(Conv2D(filters=128, kernel_size=3, activation='relu', padding='valid' ))    
+    model.add(GlobalAveragePooling2D())
+    
+    # Layer 4
+    model.add(Dense(100, activation = "relu"))
+    model.add(Dropout(0.5))
+
+
+    model.add(Dense(class_cnt, activation = "softmax"))
+    
+    model.compile(optimizer='adam', loss=keras.losses.CategoricalCrossentropy(), metrics=['accuracy'])
+    return model
+
+
 
 #evenbigger but with dropout, acc 75
 def get_cnn_minKernelReg466(img_h, img_w, class_cnt):
@@ -673,7 +690,7 @@ def get_cnn_minKernelReg466(img_h, img_w, class_cnt):
     return model
 
 
-#try second dence with dropout, acc 76
+#try second dence with dropout, acc 74-76
 def get_cnn_minKernelReg5445(img_h, img_w, class_cnt):
     model = Sequential()
 

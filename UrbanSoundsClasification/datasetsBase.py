@@ -3,6 +3,10 @@ import numpy as np
 import cv2
 from tensorflow import keras
 
+# For visualization
+import librosa
+import matplotlib.pyplot as plt
+
 
 # TODO move here all functions that uses df !!!!
 
@@ -43,7 +47,6 @@ class UrbandSound8k:
         }
         return class_weight
 
-
     def prepare_data_kFold(self, test_index, kfoldsCnt, folds_cnt, use_chaged_speed = False):
         print("Using " + str(test_index+1) + " fold out of: " + str(kfoldsCnt))
         x_train = np.zeros((self.DATA_SAMPLES_CNT - folds_cnt[test_index], self.IMG_HEIGHT, self.IMG_WIDTH))
@@ -77,16 +80,12 @@ class UrbandSound8k:
         x_train = x_train.reshape(x_train.shape[0], self.IMG_HEIGHT, self.IMG_WIDTH, 1)
         x_test = x_test.reshape(x_test.shape[0], self.IMG_HEIGHT, self.IMG_WIDTH, 1)
         
-        train_labels = keras.utils.to_categorical(y_train, num_classes=self.CLASSES_CNT)
-        test_labels = keras.utils.to_categorical(y_test, num_classes=self.CLASSES_CNT)
-
-        return x_train, x_test, train_labels, test_labels
+        return x_train, x_test, y_train, y_test
 
 
     # LSTM -------------------------------------------------------------------
     def set_frame_cnt(self, frameCnt):
         self.FRAME_CNT = frameCnt
-
 
     def prepare_data_kFold_LSTM(self, test_index, kfoldsCnt, folds_cnt, X_data, Y_data):
         print("Using " + str(test_index+1) + " fold out of: " + str(kfoldsCnt))
@@ -111,7 +110,3 @@ class UrbandSound8k:
         x_test =  x_test.reshape( x_test.shape[0],   self.FRAME_CNT, self.IMG_HEIGHT, (self.IMG_WIDTH // self.FRAME_CNT), 1)
 
         return x_train, x_test, y_train, y_test
-
-
-
-

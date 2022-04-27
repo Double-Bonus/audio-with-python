@@ -5,10 +5,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import itertools
 import librosa
+import librosa.display
+
+
+from datasetsBase import UrbandSound8k
 
 # ----------------------------- Private Defines ---------------------------------
-_WINDOW_HEIGHT = 10
-_WINDOW_WIDTH = 5
+
 
 
 # ----------------------------- Private functions -------------------------------
@@ -49,6 +52,9 @@ def log_confusion_matrix(model, test_images, test_labels):
   test_pred_raw = model.predict(test_images)
   test_pred = np.argmax(test_pred_raw, axis=1)
   
+  print("Saving results in confusion matrix")
+  
+  
   # Hardcoded for now TODO FIX
   class_names = [
     'air_conditioner',
@@ -82,89 +88,107 @@ def draw_model_results(model_history):
   plt.xlabel('epoch')
   plt.grid(b=True)
   plt.show()
+  
+  
+  
+  
+  #------------------------ CLASS ----------------------
     
-def show_basic_data(base_path, useEsc50 = False):
-  """
-  Plot Linear-frequency power spectrogram for audio files
+class Visualise:
+    def __init__(self, urDb = UrbandSound8k()):
+        self._WINDOW_HEIGHT = 10
+        self._WINDOW_WIDTH = 5
+        self.urDb = urDb 
+        
+    def show_basic_data(self, useEsc50 = False):
+        """
+        Plot Linear-frequency power spectrogram for audio files
 
-  Args:
-      base_path : path to UrbandSounds8K db
-      useEsc50: Flag if working with Esc50 dataset
-  """
-  if useEsc50:
-    print("Showing esc50 dataset")
-    dat1, sampling_rate1 = librosa.load(base_path + "//audio//1-34497-A-14.wav")
-    dat2, sampling_rate2 = librosa.load(base_path + "//audio//1-50661-A-44.wav")
-  else:
-    dat1, sampling_rate1 = librosa.load(base_path + "//audio//fold5//100032-3-0-0.wav")
-    dat2, sampling_rate2 = librosa.load(base_path + "//audio//fold5//100263-2-0-117.wav")
-  plt.figure(figsize=(_WINDOW_HEIGHT, _WINDOW_WIDTH))
-  D = librosa.amplitude_to_db(np.abs(librosa.stft(dat1)), ref=np.max)
-  plt.subplot(4, 2, 1)
-  librosa.display.specshow(D, y_axis='linear')
-  plt.colorbar(format='%+2.0f dB')
-  plt.title('Linear-frequency power spectrogram')
+        Args:
+            base_path : path to UrbandSounds8K db
+            useEsc50: Flag if working with Esc50 dataset
+        """
+        if useEsc50:
+            print("Showing esc50 dataset")
+            dat1, sampling_rate1 = librosa.load(self.urDb.BASE_PATH + "//audio//1-34497-A-14.wav")
+            dat2, sampling_rate2 = librosa.load(self.urDb.BASE_PATH + "//audio//1-50661-A-44.wav")
+        else:
+            dat1, sampling_rate1 = librosa.load(self.urDb.BASE_PATH + "//audio//fold5//100032-3-0-0.wav")
+            dat2, sampling_rate2 = librosa.load(self.urDb.BASE_PATH + "//audio//fold5//100263-2-0-117.wav")
+        plt.figure(figsize=(self._WINDOW_HEIGHT, self._WINDOW_WIDTH))
+        D = librosa.amplitude_to_db(np.abs(librosa.stft(dat1)), ref=np.max)
+        plt.subplot(4, 2, 1)
+        librosa.display.specshow(D, y_axis='linear')
+        plt.colorbar(format='%+2.0f dB')
+        plt.title('Linear-frequency power spectrogram')
 
-  D = librosa.amplitude_to_db(np.abs(librosa.stft(dat2)), ref=np.max)
-  plt.subplot(4, 2, 2)
-  librosa.display.specshow(D, y_axis='linear')
-  plt.colorbar(format='%+2.0f dB')
-  plt.title('Linear-frequency power spectrogram')
-  plt.show()
+        D = librosa.amplitude_to_db(np.abs(librosa.stft(dat2)), ref=np.max)
+        plt.subplot(4, 2, 2)
+        librosa.display.specshow(D, y_axis='linear')
+        plt.colorbar(format='%+2.0f dB')
+        plt.title('Linear-frequency power spectrogram')
+        plt.show()
 
-def show_diff_classes(df, base_path):
-  """
-  Using random samples to observe difference in waveforms from Lin.-fq power spectrograms
+    def show_diff_classes(self):
+        """
+        Using random samples to observe difference in waveforms from Lin.-fq power spectrograms
+        """
+        arr = np.array(self.urDb.df["slice_file_name"])
+        fold = np.array(self.urDb.df["fold"])
+        cla = np.array(self.urDb.df["class"])
 
-  Args:
-      df : metadata frame for UrbandSounds8K
-      base_path : path to UrbandSounds8K db
-  """
-  arr = np.array(df["slice_file_name"])
-  fold = np.array(df["fold"])
-  cla = np.array(df["class"])
+        j = 1
+        plt.figure(figsize=(self._WINDOW_HEIGHT, self._WINDOW_WIDTH))
+        for i in range(175, 197, 3):
+            path = self.urDb.BASE_PATH  + "//audio//fold" + str(fold[i]) + '//' + arr[i]
+            data, sampling_rate = librosa.load(path)
+            D = librosa.amplitude_to_db(np.abs(librosa.stft(data)), ref=np.max)
+            plt.subplot(4, 2, j)
+            j = j + 1
+            librosa.display.specshow(D, y_axis='linear')
+            plt.colorbar(format='%+2.0f dB')
+            plt.title(cla[i])
+        plt.show()
 
-  j = 1
-  plt.figure(figsize=(_WINDOW_HEIGHT, _WINDOW_WIDTH))
-  for i in range(175, 197, 3):
-      path = base_path  + "//audio//fold" + str(fold[i]) + '//' + arr[i]
-      data, sampling_rate = librosa.load(path)
-      D = librosa.amplitude_to_db(np.abs(librosa.stft(data)), ref=np.max)
-      plt.subplot(4, 2, j)
-      j = j + 1
-      librosa.display.specshow(D, y_axis='linear')
-      plt.colorbar(format='%+2.0f dB')
-      plt.title(cla[i])
-  plt.show()
+    def show_mel_img(self):  
+        """
+        Function shows mel-spectogram of audio file
+        """
+        y, sr = librosa.load(self.urDb.BASE_PATH + "//audio//fold2//100652-3-0-0.wav")
+        S = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=self.urDb.IMG_HEIGHT, fmax=8000)
+        S_dB = librosa.power_to_db(S, ref=np.max)
+        img = librosa.display.specshow(S_dB, x_axis='time',y_axis='mel', sr=sr, fmax=8000)
+        plt.colorbar(format='%+2.0f dB')
+        plt.title('Mel spectrogram')
+        plt.show()
 
-def show_mel_img(base_path, img_h):  
-  """
-  Function shows mel-spectogram of audio file
+    def plot_wave_from_audio(self):
+        """ 
+        Function plots audio file in wave form
+        """
+        for j in range(1, 3):
+            i = np.random.randint(0, self.urDb.DATA_SAMPLES_CNT)
+            path = self.urDb.BASE_PATH  + "//audio//fold" + str(self.urDb.df["fold"][i]) + '//' + self.urDb.df["slice_file_name"][i]
+            data, sr = librosa.load(path) 
+            plt.subplot(2, 1, j)   
+            librosa.display.waveshow(data, sr=sr, x_axis='time', offset=0.0, marker='', where='post')
+            plt.title("Audio signal in wave form of: " + str(self.urDb.df["class"][i]))
+        plt.show()
+     
+def main():
+      
+      print("Hello from Visualise!")
+      vis = Visualise()
+      vis.show_basic_data()
+      vis.show_diff_classes()
+      vis.show_mel_img()
+      vis.plot_wave_from_audio()
+      print("End from Visualise!")
 
-  Args:
-      base_path: path to UrbandSounds8K db
-  """
-  y, sr = librosa.load(base_path + "//audio//fold2//100652-3-0-0.wav")
-  S = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=img_h, fmax=8000)
-  S_dB = librosa.power_to_db(S, ref=np.max)
-  img = librosa.display.specshow(S_dB, x_axis='time',y_axis='mel', sr=sr, fmax=8000)
-  plt.colorbar(format='%+2.0f dB')
-  plt.title('Mel spectrogram')
-  plt.show()
 
-def plot_wave_from_audio(df, base_path):
-  """ 
-  Function plots audio file in wave form
+if __name__ == "__main__":
+      main()
 
-  Args:
-      df : metadata frame for UrbandSounds8K
-      base_path : path to UrbandSounds8K db
-  """
-  for j in range(1, 3):
-    i = np.random.randint(0, 8732)
-    path = base_path  + "//audio//fold" + str(df["fold"][i]) + '//' + df["slice_file_name"][i]
-    data, sr = librosa.load(path) 
-    plt.subplot(2, 1, j)   
-    librosa.display.waveshow(data, sr=sr, x_axis='time', offset=0.0, marker='', where='post')
-    plt.title("Audio signal in wave form of: " + str(df["class"][i]))
-  plt.show()
+  
+  
+  

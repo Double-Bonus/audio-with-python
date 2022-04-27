@@ -31,7 +31,7 @@ import sklearn
 from numpy import random
 
 # User defined modules
-from visualise import *
+from visualise import draw_model_results, log_confusion_matrix
 from cnn_model import *
 
 # User defined classes
@@ -59,22 +59,26 @@ def train_kFold(use_chaged_speed):
     model.summary() # comment out if you don't want to see the model summary
 
     # 10-fold cross validation
-    kfoldsCnt = 10
+    kfoldsCnt = 1
     for test_index in range(0, kfoldsCnt):
 
-        model = get_cnn_minKernelReg(IMG_HEIGHT, IMG_WIDTH, CLASSES_CNT)
+        model = get_cnn_minKernelReg5445(IMG_HEIGHT, IMG_WIDTH, CLASSES_CNT)
 
-        x_train, x_test, train_labels, test_labels = urbandDb.prepare_data_kFold(test_index, kfoldsCnt, folds_cnt)
+        x_train, x_test, y_train, y_test = urbandDb.prepare_data_kFold(test_index, kfoldsCnt, folds_cnt)
+        
+        train_labels = keras.utils.to_categorical(y_train, num_classes=urbandDb.CLASSES_CNT)
+        test_labels = keras.utils.to_categorical(y_test, num_classes=urbandDb.CLASSES_CNT)
+        
         epochsCnt = 150
         earlystopper = callbacks.EarlyStopping(patience=epochsCnt*0.3, verbose=1, monitor='val_accuracy')
         checkpointer = callbacks.ModelCheckpoint('models\\k_urban_model.h5', verbose=1, monitor='val_accuracy', save_best_only=True)
 
-        if 1: # use weight for class inbalandce
+        if 0: # use weight for class inbalandce
             clsWeight = urbandDb.get_class_weights()
-            model.fit(x_train, train_labels, epochs = epochsCnt, batch_size = 64, verbose = 1, class_weight = clsWeight,
+            hist = model.fit(x_train, train_labels, epochs = epochsCnt, batch_size = 64, verbose = 1, class_weight = clsWeight,
                validation_data=(x_test, test_labels), callbacks = [earlystopper, checkpointer])
         else:
-            model.fit(x_train, train_labels, epochs = epochsCnt, batch_size = 64, verbose = 0,
+            hist = model.fit(x_train, train_labels, epochs = epochsCnt, batch_size = 64, verbose = 1,
                validation_data=(x_test, test_labels), callbacks = [earlystopper, checkpointer])
     
         model = keras.models.load_model('models\\k_urban_model.h5')
@@ -86,6 +90,11 @@ def train_kFold(use_chaged_speed):
         print("Temp k-Folds Accuracy: {0}".format(np.mean(accuracies)))
 
         Functionality.calculate_F1score(rounded_labels, y_pred)
+        
+        if 1: # initial results
+            draw_model_results(hist)            
+            log_confusion_matrix(model, x_test, y_test)
+        
 
         
     print("\nAverage 10 Folds Accuracy: {0}".format(np.mean(accuracies)))
@@ -136,7 +145,7 @@ def spectrogram_image(y, sr, out_dir, out_name, hop_length, n_mels):
     
     cv2.imwrite((out_dir + "\\" + out_name), img)
     
-def save_wav_to_png(use_Kfold = False):
+def save_wav_to_png(foldName, use_Kfold = False):
     """ 
     Saves spectograms data from sound files as png pictures
     """
@@ -165,7 +174,7 @@ def save_wav_to_png(use_Kfold = False):
         if use_Kfold:
             dir_name = "processed//fold" + str(df["fold"][i])
         else:
-            dir_name = "img_save"
+            dir_name = foldName
         
         spectrogram_image(y=window, sr=sr, out_dir=dir_name , out_name=img_name, hop_length=hop_length, n_mels=n_mels)
     print("Done saving pictures!")
@@ -244,15 +253,18 @@ def train_CNN(X, Y, test_portion = 0.25):
     train_labels = keras.utils.to_categorical(y_train, num_classes=CLASSES_CNT)
     test_labels = keras.utils.to_categorical(y_test, num_classes=CLASSES_CNT)
     
-    model = get_cnn(IMG_HEIGHT, IMG_WIDTH, CLASSES_CNT)
+    model = get_cnn_minKernelReg_12(IMG_HEIGHT, IMG_WIDTH, CLASSES_CNT)
     model.summary()
 
-    earlystopper = callbacks.EarlyStopping(patience=9, verbose=1, monitor='val_accuracy')
-    checkpointer = callbacks.ModelCheckpoint('models\\urban_model.h5', verbose=1, save_best_only=True)
+    epochCnt = 160
+    earlystopper = callbacks.EarlyStopping(patience=epochCnt*0.2, verbose=1, monitor='val_accuracy')
+    checkpointer = callbacks.ModelCheckpoint('models\\urban_model.h5', verbose=1, monitor='val_accuracy', save_best_only=True)    
     
-    hist = model.fit(x_train, train_labels, batch_size=128, epochs=30, verbose=1, validation_data=(x_test, test_labels), callbacks = [earlystopper, checkpointer])
+    hist = model.fit(x_train, train_labels, batch_size=128, epochs=epochCnt, verbose=1, validation_data=(x_test, test_labels), callbacks = [earlystopper, checkpointer])
     draw_model_results(hist)
-    log_confusion_matrix(model, x_test, y_test) #TODO FIX: Note that here you use last model not the one saved!
+    model = keras.models.load_model('models\\k_urban_model.h5')
+    
+    log_confusion_matrix(model, x_test, y_test)
     
     
 # ----------------------- MAIN ------------------
@@ -273,21 +285,18 @@ np.random.seed(0)
 df = pd.read_csv("Urband_sounds//UrbanSound8K//metadata//UrbanSound8K.csv")
 if DEBUG_MODE:
     print(df.head())
-    show_basic_data(BASE_PATH)
-    show_diff_classes(df, BASE_PATH)
-    show_mel_img(BASE_PATH, IMG_HEIGHT)
-    plot_wave_from_audio(df, BASE_PATH)
     
 
 if USE_KFOLD_VALID:
     fold = "processed"
 else:
     fold = "img_save"
+    # fold = "img_save_hop_612"
     # fold = "img_save04_11"
     
 # suppose existanse of images folder shows that there is data   NOW THIS APPPORACH IS RETARDED
 if not os.path.exists(fold):
-    save_wav_to_png(USE_KFOLD_VALID)
+    save_wav_to_png(fold, USE_KFOLD_VALID)
     
 # if not os.path.exists("speed"):
 #     save_stretched_wav_to_png()

@@ -178,7 +178,11 @@ def train(x_train, y_train, x_test, y_test, urDb, epochs, verbose = False):
     pred = model.predict(x_test)
     y_pred = np.argmax(pred, axis=1) 
     rounded_labels=np.argmax(y_test, axis=1)
-    return Functionality.accuracy_score(rounded_labels, y_pred)  
+    
+    if 1: # show F1 score
+        Functionality.calculate_F1score(rounded_labels, y_pred)
+    
+    return Functionality.calculate_accuracy(rounded_labels, y_pred)  
     
     
 ################################################################
