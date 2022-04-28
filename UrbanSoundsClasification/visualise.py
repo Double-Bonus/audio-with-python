@@ -92,8 +92,7 @@ def draw_model_results(model_history):
   
   
   
-  #------------------------ CLASS ----------------------
-    
+#------------------------ CLASS ----------------------    
 class Visualise:
     def __init__(self, urDb = UrbandSound8k()):
         self._WINDOW_HEIGHT = 10
@@ -105,8 +104,7 @@ class Visualise:
         Plot Linear-frequency power spectrogram for audio files
 
         Args:
-            base_path : path to UrbandSounds8K db
-            useEsc50: Flag if working with Esc50 dataset
+            useEsc50: Flag if working with Esc50 dataset, will not be used! (once impelemented ESC-10 db class)
         """
         if useEsc50:
             print("Showing esc50 dataset")
@@ -166,23 +164,64 @@ class Visualise:
         """ 
         Function plots audio file in wave form
         """
-        for j in range(1, 3):
-            i = np.random.randint(0, self.urDb.DATA_SAMPLES_CNT)
-            path = self.urDb.BASE_PATH  + "//audio//fold" + str(self.urDb.df["fold"][i]) + '//' + self.urDb.df["slice_file_name"][i]
-            data, sr = librosa.load(path) 
-            plt.subplot(2, 1, j)   
-            librosa.display.waveshow(data, sr=sr, x_axis='time', offset=0.0, marker='', where='post')
-            plt.title("Audio signal in wave form of: " + str(self.urDb.df["class"][i]))
+        fig, axs = plt.subplots(4, 2, figsize=(10,10))
+        index = 0
+        for col in range(2):
+            for row in range(4):
+
+              path = self.urDb.BASE_PATH  + "//audio//fold" + str(self.urDb.df["fold"][index]) + '//' + self.urDb.df["slice_file_name"][index]
+              data, sr = librosa.load(path) 
+              data = librosa.util.utils.fix_length(data, 4*sr)
+              
+              librosa.display.waveshow(data, sr=sr, x_axis='time', ax=axs[row][col], offset=0.0, marker='', where='post')
+              axs[row][col].set_ylim(-1, 1)
+              axs[row][col].set_title("Audio signal in wave form of: " + str(self.urDb.df["class"][index]), fontsize=12, pad=0)
+              index += 60 # get some differerent sounds
+        plt.tight_layout()
         plt.show()
      
+    def plot_basic_spectrograms(self):
+          """ 
+          Function calculates STFT for audio file and plots spectrogram
+          """
+          FRAME_SIZE = 2048
+          HOP_SIZE = 512
+          
+          fig, axs = plt.subplots(4, 2, figsize=(10,10))
+          index = 0
+          for col in range(2):
+              for row in range(4):
+                  file_name = self.urDb.BASE_PATH + "//audio//fold" + str(self.urDb.df["fold"][index]) + '//' + self.urDb.df["slice_file_name"][index]
+                  
+                  audio_file, sample_rate = librosa.load(file_name)
+                  audio_file = librosa.util.utils.fix_length(audio_file, 4*sample_rate)
+                              
+                  stft = librosa.stft(audio_file, n_fft=FRAME_SIZE, hop_length=HOP_SIZE)  # STFT of y     
+                  S_db = librosa.amplitude_to_db(np.abs(stft), ref=np.max)
+                  librosa.display.specshow(S_db, 
+                                      sr=sample_rate, 
+                                      hop_length=HOP_SIZE, 
+                                      x_axis="time", 
+                                      y_axis='log',
+                                      ax=axs[row][col])
+                  axs[row][col].tick_params(axis='x', labelsize=7, pad=0)
+                  axs[row][col].set_xlabel('time, s', fontsize=8)
+                  axs[row][col].set_title('Spectrogram of: {}'.format(self.urDb.df["class"][index]), fontsize=12, pad=0)
+                  index += 60 # get some differerent sounds
+          plt.tight_layout()
+          plt.show()
+
+
 def main():
       
       print("Hello from Visualise!")
-      vis = Visualise()
-      vis.show_basic_data()
-      vis.show_diff_classes()
-      vis.show_mel_img()
-      vis.plot_wave_from_audio()
+      # vis = Visualise()
+      # vis.show_basic_data()
+      # vis.show_diff_classes()
+      # vis.show_mel_img()
+      # vis.plot_wave_from_audio()
+      Visualise().plot_basic_spectrograms()
+      Visualise().plot_wave_from_audio()
       print("End from Visualise!")
 
 
