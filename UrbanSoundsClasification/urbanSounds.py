@@ -94,6 +94,9 @@ def train_kFold(use_chaged_speed):
         if 1: # initial results
             draw_model_results(hist)            
             log_confusion_matrix(model, x_test, y_test)
+            
+        if 1: # Save history for latte analysis
+            np.save('my_history.npy',hist.history) # Load with history=np.load('my_history.npy',allow_pickle='TRUE').item() 
         
 
         

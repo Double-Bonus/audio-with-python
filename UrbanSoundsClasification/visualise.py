@@ -13,93 +13,92 @@ from datasetsBase import UrbandSound8k
 # ----------------------------- Private Defines ---------------------------------
 
 
-
 # ----------------------------- Private functions -------------------------------
 def _plot_confusion_matrix(cm, class_names):
-  """ 
-  Saves a matplotlib figure containing the plotted confusion matrix.
-  
-  Args:
-    cm (array, shape = [n, n]): a confusion matrix of integer classes
-    class_names (array, shape = [n]): String names of the integer classes
-  """
-  figure = plt.figure(figsize=(8, 8))
-  plt.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
-  plt.title("Confusion matrix")
-  plt.colorbar()
-  tick_marks = np.arange(len(class_names))
-  plt.xticks(tick_marks, class_names, rotation=45)
-  plt.yticks(tick_marks, class_names)
+    """ 
+    Saves a matplotlib figure containing the plotted confusion matrix.
 
-  # Compute the labels from the normalized confusion matrix.
-  labels = np.around(cm.astype('float') / cm.sum(axis=1)[:, np.newaxis], decimals=2)
+    Args:
+      cm (array, shape = [n, n]): a confusion matrix of integer classes
+      class_names (array, shape = [n]): String names of the integer classes
+    """
+    figure = plt.figure(figsize=(8, 8))
+    plt.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
+    plt.title("Confusion matrix")
+    plt.colorbar()
+    tick_marks = np.arange(len(class_names))
+    plt.xticks(tick_marks, class_names, rotation=45)
+    plt.yticks(tick_marks, class_names)
 
-  # Use white text if squares are dark; otherwise black.
-  threshold = cm.max() / 2.
-  for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):  # TODO why need itertools???
-    color = "white" if cm[i, j] > threshold else "black"
-    plt.text(j, i, labels[i, j], horizontalalignment="center", color=color)
+    # Compute the labels from the normalized confusion matrix.
+    labels = np.around(cm.astype('float') / cm.sum(axis=1)
+                       [:, np.newaxis], decimals=2)
 
-  plt.tight_layout()
-  plt.ylabel('True label')
-  plt.xlabel('Predicted label')  
-  plt.savefig('ConfusionMatrix.png')
+    # Use white text if squares are dark; otherwise black.
+    threshold = cm.max() / 2.
+    # TODO why need itertools???
+    for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
+        color = "white" if cm[i, j] > threshold else "black"
+        plt.text(j, i, labels[i, j], horizontalalignment="center", color=color)
+
+    plt.tight_layout()
+    plt.ylabel('True label')
+    plt.xlabel('Predicted label')
+    plt.savefig('ConfusionMatrix.png')
 
 
 # ----------------------------- Public functions --------------------------------
 def log_confusion_matrix(model, test_images, test_labels):
-  # Use the model to predict the values from the validation dataset.
-  test_pred_raw = model.predict(test_images)
-  test_pred = np.argmax(test_pred_raw, axis=1)
-  
-  print("Saving results in confusion matrix")
-  
-  
-  # Hardcoded for now TODO FIX
-  class_names = [
-    'air_conditioner',
-    'car_horn',
-    'children_playing',
-    'dog_bark',
-    'drilling',
-    'engine_idling',
-    'gun_shot',
-    'jackhammer',
-    'siren',
-    'street_music']
+    # Use the model to predict the values from the validation dataset.
+    test_pred_raw = model.predict(test_images)
+    test_pred = np.argmax(test_pred_raw, axis=1)
 
-  # Calculate the confusion matrix.
-  cm = sklearn.metrics.confusion_matrix(test_labels, test_pred)
-  # Log the confusion matrix as an image summary.
-  _plot_confusion_matrix(cm, class_names=class_names)
-  
+    print("Saving results in confusion matrix")
+
+    # Hardcoded for now TODO FIX
+    class_names = [
+        'air_conditioner',
+        'car_horn',
+        'children_playing',
+        'dog_bark',
+        'drilling',
+        'engine_idling',
+        'gun_shot',
+        'jackhammer',
+        'siren',
+        'street_music']
+
+    # Calculate the confusion matrix.
+    cm = sklearn.metrics.confusion_matrix(test_labels, test_pred)
+    # Log the confusion matrix as an image summary.
+    _plot_confusion_matrix(cm, class_names=class_names)
+
+
 def draw_model_results(model_history):
-  plt.subplot(121)
-  plt.plot(model_history.history['accuracy'], 'r')
-  plt.plot(model_history.history['val_accuracy'], 'b')
-  plt.ylabel('accuracy, r - train, b - val')
-  plt.xlabel('epoch')
-  plt.grid(b=True)
-  
-  plt.subplot(122)
-  plt.plot(model_history.history['loss'], 'r')
-  plt.plot(model_history.history['val_loss'], 'b')
-  plt.ylabel('Loss, r - train, b - val')
-  plt.xlabel('epoch')
-  plt.grid(b=True)
-  plt.show()
-  
-  
-  
-  
-#------------------------ CLASS ----------------------    
+    plt.subplot(121)
+    plt.plot(model_history.history['accuracy'], 'r')
+    plt.plot(model_history.history['val_accuracy'], 'b')
+    plt.ylabel('accuracy, r - train, b - val')
+    plt.xlabel('epoch')
+    plt.grid(b=True)
+
+    plt.subplot(122)
+    plt.plot(model_history.history['loss'], 'r')
+    plt.plot(model_history.history['val_loss'], 'b')
+    plt.ylabel('Loss, r - train, b - val')
+    plt.xlabel('epoch')
+    plt.grid(b=True)
+    plt.show()
+
+
+# ------------------------ CLASS ----------------------
 class Visualise:
-    def __init__(self, urDb = UrbandSound8k()):
+    def __init__(self, urDb=UrbandSound8k()):
         self._WINDOW_HEIGHT = 10
         self._WINDOW_WIDTH = 5
-        self.urDb = urDb 
-        
-    def show_basic_data(self, useEsc50 = False):
+        self.urDb = urDb
+
+    def show_basic_data(self, useEsc50=False):
         """
         Plot Linear-frequency power spectrogram for audio files
 
@@ -108,11 +107,15 @@ class Visualise:
         """
         if useEsc50:
             print("Showing esc50 dataset")
-            dat1, sampling_rate1 = librosa.load(self.urDb.BASE_PATH + "//audio//1-34497-A-14.wav")
-            dat2, sampling_rate2 = librosa.load(self.urDb.BASE_PATH + "//audio//1-50661-A-44.wav")
+            dat1, sampling_rate1 = librosa.load(
+                self.urDb.BASE_PATH + "//audio//1-34497-A-14.wav")
+            dat2, sampling_rate2 = librosa.load(
+                self.urDb.BASE_PATH + "//audio//1-50661-A-44.wav")
         else:
-            dat1, sampling_rate1 = librosa.load(self.urDb.BASE_PATH + "//audio//fold5//100032-3-0-0.wav")
-            dat2, sampling_rate2 = librosa.load(self.urDb.BASE_PATH + "//audio//fold5//100263-2-0-117.wav")
+            dat1, sampling_rate1 = librosa.load(
+                self.urDb.BASE_PATH + "//audio//fold5//100032-3-0-0.wav")
+            dat2, sampling_rate2 = librosa.load(
+                self.urDb.BASE_PATH + "//audio//fold5//100263-2-0-117.wav")
         plt.figure(figsize=(self._WINDOW_HEIGHT, self._WINDOW_WIDTH))
         D = librosa.amplitude_to_db(np.abs(librosa.stft(dat1)), ref=np.max)
         plt.subplot(4, 2, 1)
@@ -138,7 +141,8 @@ class Visualise:
         j = 1
         plt.figure(figsize=(self._WINDOW_HEIGHT, self._WINDOW_WIDTH))
         for i in range(175, 197, 3):
-            path = self.urDb.BASE_PATH  + "//audio//fold" + str(fold[i]) + '//' + arr[i]
+            path = self.urDb.BASE_PATH + "//audio//fold" + \
+                str(fold[i]) + '//' + arr[i]
             data, sampling_rate = librosa.load(path)
             D = librosa.amplitude_to_db(np.abs(librosa.stft(data)), ref=np.max)
             plt.subplot(4, 2, j)
@@ -148,86 +152,107 @@ class Visualise:
             plt.title(cla[i])
         plt.show()
 
-    def show_mel_img(self):  
+    def plot_mel_spectrograms(self):
         """
-        Function shows mel-spectogram of audio file
+        Function plots mel-spectogram of audio file
         """
-        y, sr = librosa.load(self.urDb.BASE_PATH + "//audio//fold2//100652-3-0-0.wav")
-        S = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=self.urDb.IMG_HEIGHT, fmax=8000)
-        S_dB = librosa.power_to_db(S, ref=np.max)
-        img = librosa.display.specshow(S_dB, x_axis='time',y_axis='mel', sr=sr, fmax=8000)
-        plt.colorbar(format='%+2.0f dB')
-        plt.title('Mel spectrogram')
+        fig, axs = plt.subplots(4, 2, figsize=(10, 10))
+        index = 0
+        for col in range(2):
+            for row in range(4):
+                file_name = self.urDb.BASE_PATH + "//audio//fold" + \
+                    str(self.urDb.df["fold"][index]) + '//' + \
+                    self.urDb.df["slice_file_name"][index]
+                audio_file, sr = librosa.load(file_name)
+                audio_file = librosa.util.utils.fix_length(audio_file, 4*sr)
+
+                S = librosa.feature.melspectrogram(
+                    y=audio_file, sr=sr, n_mels=self.urDb.IMG_HEIGHT, fmax=8000)
+                S_dB = librosa.power_to_db(S, ref=np.max)
+                librosa.display.specshow(
+                    S_dB, x_axis='time', y_axis='mel', sr=sr, fmax=8000, ax=axs[row][col])
+                axs[row][col].tick_params(axis='x', labelsize=7, pad=0)
+                axs[row][col].set_xlabel('time, s', fontsize=8)
+                axs[row][col].set_title('Mel Spectrogram of: {}'.format(
+                    self.urDb.df["class"][index]), fontsize=12, pad=0)
+                index += 60  # get some differerent sounds
+        plt.tight_layout()
         plt.show()
+                  
 
     def plot_wave_from_audio(self):
         """ 
         Function plots audio file in wave form
         """
-        fig, axs = plt.subplots(4, 2, figsize=(10,10))
+        fig, axs = plt.subplots(4, 2, figsize=(10, 10))
         index = 0
         for col in range(2):
             for row in range(4):
+                path = self.urDb.BASE_PATH + "//audio//fold" + \
+                    str(self.urDb.df["fold"][index]) + '//' + \
+                    self.urDb.df["slice_file_name"][index]
+                data, sr = librosa.load(path)
+                data = librosa.util.utils.fix_length(data, 4*sr)
 
-              path = self.urDb.BASE_PATH  + "//audio//fold" + str(self.urDb.df["fold"][index]) + '//' + self.urDb.df["slice_file_name"][index]
-              data, sr = librosa.load(path) 
-              data = librosa.util.utils.fix_length(data, 4*sr)
-              
-              librosa.display.waveshow(data, sr=sr, x_axis='time', ax=axs[row][col], offset=0.0, marker='', where='post')
-              axs[row][col].set_ylim(-1, 1)
-              axs[row][col].set_title("Audio signal in wave form of: " + str(self.urDb.df["class"][index]), fontsize=12, pad=0)
-              index += 60 # get some differerent sounds
+                librosa.display.waveshow(
+                    data, sr=sr, x_axis='time', ax=axs[row][col], offset=0.0, marker='', where='post')
+                axs[row][col].set_ylim(-1, 1)
+                axs[row][col].set_title(
+                    "Audio signal in wave form of: " + str(self.urDb.df["class"][index]), fontsize=12, pad=0)
+                index += 60  # get some differerent sounds
         plt.tight_layout()
         plt.show()
-     
+
     def plot_basic_spectrograms(self):
-          """ 
-          Function calculates STFT for audio file and plots spectrogram
-          """
-          FRAME_SIZE = 2048
-          HOP_SIZE = 512
-          
-          fig, axs = plt.subplots(4, 2, figsize=(10,10))
-          index = 0
-          for col in range(2):
-              for row in range(4):
-                  file_name = self.urDb.BASE_PATH + "//audio//fold" + str(self.urDb.df["fold"][index]) + '//' + self.urDb.df["slice_file_name"][index]
-                  
-                  audio_file, sample_rate = librosa.load(file_name)
-                  audio_file = librosa.util.utils.fix_length(audio_file, 4*sample_rate)
-                              
-                  stft = librosa.stft(audio_file, n_fft=FRAME_SIZE, hop_length=HOP_SIZE)  # STFT of y     
-                  S_db = librosa.amplitude_to_db(np.abs(stft), ref=np.max)
-                  librosa.display.specshow(S_db, 
-                                      sr=sample_rate, 
-                                      hop_length=HOP_SIZE, 
-                                      x_axis="time", 
-                                      y_axis='log',
-                                      ax=axs[row][col])
-                  axs[row][col].tick_params(axis='x', labelsize=7, pad=0)
-                  axs[row][col].set_xlabel('time, s', fontsize=8)
-                  axs[row][col].set_title('Spectrogram of: {}'.format(self.urDb.df["class"][index]), fontsize=12, pad=0)
-                  index += 60 # get some differerent sounds
-          plt.tight_layout()
-          plt.show()
+        """ 
+        Function calculates STFT for audio file and plots spectrogram
+        """
+        FRAME_SIZE = 2048
+        HOP_SIZE = 512
+
+        fig, axs = plt.subplots(4, 2, figsize=(10, 10))
+        index = 0
+        for col in range(2):
+            for row in range(4):
+                file_name = self.urDb.BASE_PATH + "//audio//fold" + \
+                    str(self.urDb.df["fold"][index]) + '//' + \
+                    self.urDb.df["slice_file_name"][index]
+
+                audio_file, sample_rate = librosa.load(file_name)
+                audio_file = librosa.util.utils.fix_length(
+                    audio_file, 4*sample_rate)
+
+                stft = librosa.stft(
+                    audio_file, n_fft=FRAME_SIZE, hop_length=HOP_SIZE)  # STFT of y
+                S_db = librosa.amplitude_to_db(np.abs(stft), ref=np.max)
+                librosa.display.specshow(S_db,
+                                         sr=sample_rate,
+                                         hop_length=HOP_SIZE,
+                                         x_axis="time",
+                                         y_axis='log',
+                                         ax=axs[row][col])
+                axs[row][col].tick_params(axis='x', labelsize=7, pad=0)
+                axs[row][col].set_xlabel('time, s', fontsize=8)
+                axs[row][col].set_title('Spectrogram of: {}'.format(
+                    self.urDb.df["class"][index]), fontsize=12, pad=0)
+                index += 60  # get some differerent sounds
+        plt.tight_layout()
+        plt.show()
 
 
 def main():
-      
-      print("Hello from Visualise!")
-      # vis = Visualise()
-      # vis.show_basic_data()
-      # vis.show_diff_classes()
-      # vis.show_mel_img()
-      # vis.plot_wave_from_audio()
-      Visualise().plot_basic_spectrograms()
-      Visualise().plot_wave_from_audio()
-      print("End from Visualise!")
+
+    print("Hello from Visualise!")
+    # vis = Visualise()
+    # vis.show_basic_data()
+    # vis.show_diff_classes()
+    # vis.show_mel_img()
+    # vis.plot_wave_from_audio()
+    Visualise().plot_basic_spectrograms()
+    Visualise().plot_wave_from_audio()
+    Visualise().plot_mel_spectrograms()
+    print("End from Visualise!")
 
 
 if __name__ == "__main__":
-      main()
-
-  
-  
-  
+    main()
