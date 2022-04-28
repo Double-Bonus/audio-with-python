@@ -135,9 +135,10 @@ def spectrogram_image(y, sr, out_dir, out_name, hop_length, n_mels):
         mels = np.mean(mels, axis=0)
 
     # min-max scale to fit inside 8-bit range
-    img = Functionality.scale_minmax(mels, 0, 255).astype(np.uint8)
-    img = np.flip(img, axis=0) # put low frequencies at the bottom in image
-    img = 255 - img            # invert. make black==more energy
+    u16max = np.iinfo(np.uint16).max
+    img = Functionality.scale_minmax(mels, 0, u16max).astype(np.uint16)
+    img = np.flip(img, axis=0)    # put low frequencies at the bottom in image
+    img = u16max - img            # invert. make black==more energy
 
     # save as PNG
     if not os.path.exists(out_dir):
@@ -223,15 +224,14 @@ def load_spectograms(folder = "img_save"):
 
     for i in range(0, DATA_SAMPLES_CNT):
         image_path = folder + "//out" + str(i+1) + "_" + str(df["class"][i]) + ".png"
-        image= cv2.imread(image_path, cv2.COLOR_BGR2RGB) # TODO FIX: check color map
-        # image= cv2.imread(image_path)
+        image= cv2.imread(image_path, cv2.CV_16U) # TODO FIX: check color map
         if image is None:
             print("Error, image was not found from: " + image_path)
             quit()
-        # image=cv2.resize(image, (IMG_HEIGHT, IMG_WIDTH),interpolation = cv2.INTER_AREA)
         image = np.array(image)
-        image = image.astype('float32')
-        image /= 255
+        image = image.astype('uint16')
+        # u16max = np.iinfo(np.uint16).max
+        # image /= 255
         img_data_array[i] = image 
         class_name[i] = cla[i]  
     return img_data_array, class_name
@@ -257,7 +257,7 @@ def train_CNN(X, Y, test_portion = 0.25):
     model.summary()
 
     epochCnt = 160
-    earlystopper = callbacks.EarlyStopping(patience=epochCnt*0.2, verbose=1, monitor='val_accuracy')
+    earlystopper = callbacks.EarlyStopping(patience=epochCnt*0.4, verbose=1, monitor='val_accuracy')
     checkpointer = callbacks.ModelCheckpoint('models\\urban_model.h5', verbose=1, monitor='val_accuracy', save_best_only=True)    
     
     hist = model.fit(x_train, train_labels, batch_size=128, epochs=epochCnt, verbose=1, validation_data=(x_test, test_labels), callbacks = [earlystopper, checkpointer])
@@ -269,7 +269,7 @@ def train_CNN(X, Y, test_portion = 0.25):
     
 # ----------------------- MAIN ------------------
 DEBUG_MODE = False
-USE_KFOLD_VALID = True
+USE_KFOLD_VALID = False
 
 BASE_PATH = "Urband_sounds//UrbanSound8K"
 DATA_SAMPLES_CNT = 8732
