@@ -99,90 +99,6 @@ def get_cnn_minKernel(img_h, img_w, class_cnt):
     return model
 
 
-
-def get_cnn_minKernel_noPadding(img_h, img_w, class_cnt):
-    kernelSz = (2, 2)
-    model = Sequential()
-    
-    # Layer 1
-    model.add(Conv2D(filters=32, kernel_size=kernelSz, activation='relu', input_shape = (img_h, img_w, 1), padding='same'))
-    model.add(MaxPooling2D((2, 2)))
-     
-    # Layer 2
-    model.add(Conv2D(filters=128, kernel_size=kernelSz, activation='relu', padding='same' ))
-    # model.add(BatchNormalization())
-    model.add(MaxPooling2D((2, 2)))
-    
-    # Layer 3
-    model.add(Conv2D(filters=256, kernel_size=kernelSz, activation='relu', padding='same' ))
-    # model.add(BatchNormalization())
-    model.add(MaxPooling2D((2, 2)))
-    model.add(Dropout(0.1))    
-        
-    # Layer 4
-    model.add(Dense(512, activation = "relu"))
-    # model.add(BatchNormalization())
-    model.add(Dropout(0.5))
-    
-    # Layer 6
-    model.add(Dense(256, activation = "relu"))
-    # model.add(BatchNormalization())
-    model.add(Dropout(0.5))
-    
-    # Layer 7
-    model.add(Flatten())
-    model.add(Dense(class_cnt, activation = "softmax"))
-    
-    model.compile(optimizer='adam', loss=keras.losses.CategoricalCrossentropy(), metrics=['accuracy'])
-    return model
-
-
-
-def get_cnn_minKernelLeaky(img_h, img_w, class_cnt):
-    kernelSz = (2, 2)
-    alpha = 0.01 
-    model = Sequential()
-    
-    # Layer 1
-    model.add(Conv2D(filters=32, kernel_size=kernelSz, activation=LeakyReLU(alpha), input_shape = (img_h, img_w, 1), padding='same'))
-    model.add(MaxPooling2D((2, 2)))
-     
-    # Layer 2
-    model.add(Conv2D(filters=128, kernel_size=kernelSz, activation=LeakyReLU(alpha), padding='same' ))
-    # model.add(BatchNormalization())
-    model.add(MaxPooling2D((2, 2)))
-    
-    # Layer 3
-    model.add(ZeroPadding2D((1, 1)))
-    model.add(Conv2D(filters=256, kernel_size=kernelSz, activation=LeakyReLU(alpha), padding='same' ))
-    # model.add(BatchNormalization())
-    model.add(MaxPooling2D((2, 2)))
-    model.add(Dropout(0.1))    
-    
-    # Layer 4
-    model.add(ZeroPadding2D((1, 1)))
-    model.add(Conv2D(filters=512, kernel_size=kernelSz, activation=LeakyReLU(alpha), padding='same' ))
-    # model.add(BatchNormalization())
-    model.add(MaxPooling2D((2, 2)))
-    model.add(Dropout(0.5))
-    
-    # Layer 5
-    model.add(Dense(1024, activation = LeakyReLU(alpha)))
-    # model.add(BatchNormalization())
-    model.add(Dropout(0.5))
-    
-    # Layer 6
-    model.add(Dense(1024, activation = LeakyReLU(alpha)))
-    # model.add(BatchNormalization())
-    model.add(Dropout(0.5))
-    
-    # Layer 7
-    model.add(Flatten())
-    model.add(Dense(class_cnt, activation = "softmax"))
-    
-    model.compile(optimizer='adam', loss=keras.losses.CategoricalCrossentropy(), metrics=['accuracy'])
-    return model
-
 # 
 def get_cnn_minKernelElu(img_h, img_w, class_cnt):
     kernelSz = (2, 2)
@@ -342,19 +258,16 @@ def get_cnn_minKernelReg2(img_h, img_w, class_cnt):
     return model   
 
 
-#try more filters
+# NESIMOKO??? try more filters, visiskai neveikia pirmas ~30 epochu 
 def get_cnn_minKernelReg3(img_h, img_w, class_cnt):
     kernelSz = (3, 3)
     model = Sequential()
-    
     
     # Layer 1
     model.add(Conv2D(filters=64, kernel_regularizer=regularizers.L1L2(l1=1e-4, l2=1e-3), kernel_size=(5,5),
      activation='relu', input_shape = (img_h, img_w, 1), padding='same'))
     model.add(MaxPooling2D((2, 2)))
 
-
-     
     # Layer 2
     model.add(Conv2D(filters=128, kernel_regularizer=regularizers.L1L2(l1=1e-4, l2=1e-3), kernel_size=kernelSz,
      activation='relu', padding='same' ))
@@ -366,7 +279,6 @@ def get_cnn_minKernelReg3(img_h, img_w, class_cnt):
      activation='relu', padding='same' ))
     model.add(MaxPooling2D((2, 2)))
     model.add(Dropout(0.25))
-
     
     # Layer 4
     model.add(Conv2D(filters=512, kernel_regularizer=regularizers.L1L2(l1=1e-4, l2=1e-3), kernel_size=kernelSz,
@@ -374,11 +286,10 @@ def get_cnn_minKernelReg3(img_h, img_w, class_cnt):
     model.add(MaxPooling2D((2, 2)))
     model.add(Dropout(0.5))
 
-    # Layer 4
+    # Layer 5
     model.add(Conv2D(filters=512, kernel_regularizer=regularizers.L1L2(l1=1e-4, l2=1e-3), kernel_size=kernelSz,
      activation='relu', padding='same' ))
     model.add(Dropout(0.5))
-
 
     # Layer 6
     model.add(Dense(256, activation = "relu"))
@@ -389,52 +300,6 @@ def get_cnn_minKernelReg3(img_h, img_w, class_cnt):
     
     model.compile(optimizer='adam', loss=keras.losses.CategoricalCrossentropy(), metrics=['accuracy'])
     return model    
-
-
-#remove regulazation add back second dense layer but removed filters cnt, acc 65
-def get_cnn_minKernelReg5665(img_h, img_w, class_cnt):
-    kernelSz = (2, 2)
-    model = Sequential()
-    
-    # Layer 1
-    model.add(Conv2D(filters=32, kernel_size=kernelSz, activation='relu', input_shape = (img_h, img_w, 1), padding='same'))
-    model.add(MaxPooling2D((2, 2)))
-    model.add(Dropout(0.25))    
-
-     
-    # Layer 2
-    model.add(Conv2D(filters=128, kernel_size=kernelSz, activation='relu', padding='same' ))
-    model.add(MaxPooling2D((2, 2)))
-    model.add(Dropout(0.25))    
-
-    
-    # Layer 3
-    model.add(ZeroPadding2D((1, 1)))
-    model.add(Conv2D(filters=256, kernel_size=kernelSz, activation='relu', padding='same' ))    
-    model.add(MaxPooling2D((2, 2)))
-    model.add(Dropout(0.25))    
-    
-    # Layer 4
-    model.add(ZeroPadding2D((1, 1)))
-    model.add(Conv2D(filters=512, kernel_size=kernelSz, activation='relu', padding='same' ))
-    model.add(MaxPooling2D((2, 2)))
-    model.add(Dropout(0.5))
-    
-    # Layer 5
-    model.add(Dense(512, activation = "relu"))
-    model.add(Dropout(0.5))
-
-    # Layer 6
-    model.add(Dense(512, activation = "relu"))
-    model.add(Dropout(0.5))
-    
-    
-    # Layer 7
-    model.add(Flatten())
-    model.add(Dense(class_cnt, activation = "softmax"))
-    
-    model.compile(optimizer='adam', loss=keras.losses.CategoricalCrossentropy(), metrics=['accuracy'])
-    return model
 
 
 #try something new, 77
@@ -495,7 +360,7 @@ def get_cnn_minKernelReg6556(img_h, img_w, class_cnt):
     model.compile(optimizer='adam', loss=keras.losses.CategoricalCrossentropy(), metrics=['accuracy'])
     return model
 
-# Change kernel_regularizer=regularizers.l2(1e-3) to kernel_regularizer=regularizers.l2(1e-4)
+# acc ~73-75     Change kernel_regularizer=regularizers.l2(1e-3) to kernel_regularizer=regularizers.l2(1e-4)
 def get_cnn_minKernelReg_12(img_h, img_w, class_cnt):
     model = Sequential()
 
@@ -520,8 +385,6 @@ def get_cnn_minKernelReg_12(img_h, img_w, class_cnt):
     
     model.compile(optimizer='adam', loss=keras.losses.CategoricalCrossentropy(), metrics=['accuracy'])
     return model
-
-
 
 #evenbigger but with dropout, acc 75
 def get_cnn_minKernelReg466(img_h, img_w, class_cnt):
@@ -625,7 +488,7 @@ def get_cnn_minKernelReg65(img_h, img_w, class_cnt):
     return model
 
 
-
+# 76-78
 def get_cnn_minKernelReg(img_h, img_w, class_cnt):
     model = Sequential()
     # alpha = 0.01 #atleast 78
@@ -792,4 +655,131 @@ class ShitResult:
         return model
             
      
+    # shit, (too complex model?) loss: 0.1005 - accuracy: 0.9645 - val_loss: 2.3162 - val_accuracy: ~0.62
+    def get_cnn_minKernel_noPadding(img_h, img_w, class_cnt):
+        kernelSz = (2, 2)
+        model = Sequential()
+        
+        # Layer 1
+        model.add(Conv2D(filters=32, kernel_size=kernelSz, activation='relu', input_shape = (img_h, img_w, 1), padding='same'))
+        model.add(MaxPooling2D((2, 2)))
+        
+        # Layer 2
+        model.add(Conv2D(filters=128, kernel_size=kernelSz, activation='relu', padding='same' ))
+        # model.add(BatchNormalization())
+        model.add(MaxPooling2D((2, 2)))
+        
+        # Layer 3
+        model.add(Conv2D(filters=256, kernel_size=kernelSz, activation='relu', padding='same' ))
+        # model.add(BatchNormalization())
+        model.add(MaxPooling2D((2, 2)))
+        model.add(Dropout(0.1))    
             
+        # Layer 4
+        model.add(Dense(512, activation = "relu"))
+        # model.add(BatchNormalization())
+        model.add(Dropout(0.5))
+        
+        # Layer 6
+        model.add(Dense(256, activation = "relu"))
+        # model.add(BatchNormalization())
+        model.add(Dropout(0.5))
+        
+        # Layer 7
+        model.add(Flatten())
+        model.add(Dense(class_cnt, activation = "softmax"))
+        
+        model.compile(optimizer='adam', loss=keras.losses.CategoricalCrossentropy(), metrics=['accuracy'])
+        return model
+            
+
+    # 67 vel labai per didelis modelis
+    # 144ms/step - loss: 0.1000 - accuracy: 0.9734 - val_loss: 3.8106 - val_accuracy: 0.6735
+    def get_cnn_minKernelLeaky(img_h, img_w, class_cnt):
+        kernelSz = (2, 2)
+        alpha = 0.01 
+        model = Sequential()
+        
+        # Layer 1
+        model.add(Conv2D(filters=32, kernel_size=kernelSz, activation=LeakyReLU(alpha), input_shape = (img_h, img_w, 1), padding='same'))
+        model.add(MaxPooling2D((2, 2)))
+        
+        # Layer 2
+        model.add(Conv2D(filters=128, kernel_size=kernelSz, activation=LeakyReLU(alpha), padding='same' ))
+        # model.add(BatchNormalization())
+        model.add(MaxPooling2D((2, 2)))
+        
+        # Layer 3
+        model.add(ZeroPadding2D((1, 1)))
+        model.add(Conv2D(filters=256, kernel_size=kernelSz, activation=LeakyReLU(alpha), padding='same' ))
+        # model.add(BatchNormalization())
+        model.add(MaxPooling2D((2, 2)))
+        model.add(Dropout(0.1))    
+        
+        # Layer 4
+        model.add(ZeroPadding2D((1, 1)))
+        model.add(Conv2D(filters=512, kernel_size=kernelSz, activation=LeakyReLU(alpha), padding='same' ))
+        # model.add(BatchNormalization())
+        model.add(MaxPooling2D((2, 2)))
+        model.add(Dropout(0.5))
+        
+        # Layer 5
+        model.add(Dense(1024, activation = LeakyReLU(alpha)))
+        # model.add(BatchNormalization())
+        model.add(Dropout(0.5))
+        
+        # Layer 6
+        model.add(Dense(1024, activation = LeakyReLU(alpha)))
+        # model.add(BatchNormalization())
+        model.add(Dropout(0.5))
+        
+        # Layer 7
+        model.add(Flatten())
+        model.add(Dense(class_cnt, activation = "softmax"))
+        
+        model.compile(optimizer='adam', loss=keras.losses.CategoricalCrossentropy(), metrics=['accuracy'])
+        return model    
+
+
+
+    #remove regulazation add back second dense layer but removed filters cnt, acc 65
+    def get_cnn_minKernelReg5665(img_h, img_w, class_cnt):
+        kernelSz = (2, 2)
+        model = Sequential()
+        
+        # Layer 1
+        model.add(Conv2D(filters=32, kernel_size=kernelSz, activation='relu', input_shape = (img_h, img_w, 1), padding='same'))
+        model.add(MaxPooling2D((2, 2)))
+        model.add(Dropout(0.25))    
+
+        # Layer 2
+        model.add(Conv2D(filters=128, kernel_size=kernelSz, activation='relu', padding='same' ))
+        model.add(MaxPooling2D((2, 2)))
+        model.add(Dropout(0.25))    
+
+        # Layer 3
+        model.add(ZeroPadding2D((1, 1)))
+        model.add(Conv2D(filters=256, kernel_size=kernelSz, activation='relu', padding='same' ))    
+        model.add(MaxPooling2D((2, 2)))
+        model.add(Dropout(0.25))    
+        
+        # Layer 4
+        model.add(ZeroPadding2D((1, 1)))
+        model.add(Conv2D(filters=512, kernel_size=kernelSz, activation='relu', padding='same' ))
+        model.add(MaxPooling2D((2, 2)))
+        model.add(Dropout(0.5))
+        
+        # Layer 5
+        model.add(Dense(512, activation = "relu"))
+        model.add(Dropout(0.5))
+
+        # Layer 6
+        model.add(Dense(512, activation = "relu"))
+        model.add(Dropout(0.5))
+        
+        # Layer 7
+        model.add(Flatten())
+        model.add(Dense(class_cnt, activation = "softmax"))
+        
+        model.compile(optimizer='adam', loss=keras.losses.CategoricalCrossentropy(), metrics=['accuracy'])
+        return model

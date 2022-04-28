@@ -55,14 +55,14 @@ def train_kFold(use_chaged_speed):
          
     urbandDb = UrbandSound8k(IMG_HEIGHT, IMG_WIDTH) # create class instance for dataset
            
-    model = get_cnn_minKernelReg(IMG_HEIGHT, IMG_WIDTH, CLASSES_CNT)
-    model.summary() # comment out if you don't want to see the model summary
-
     # 10-fold cross validation
     kfoldsCnt = 1
     for test_index in range(0, kfoldsCnt):
 
-        model = get_cnn_minKernelReg5445(IMG_HEIGHT, IMG_WIDTH, CLASSES_CNT)
+        
+        model = get_cnn_minKernelReg2(IMG_HEIGHT, IMG_WIDTH, CLASSES_CNT)
+        if test_index == 0:
+            model.summary() # show summary before first traing
 
         x_train, x_test, y_train, y_test = urbandDb.prepare_data_kFold(test_index, kfoldsCnt, folds_cnt)
         
