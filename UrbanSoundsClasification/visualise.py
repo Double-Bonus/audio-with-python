@@ -166,9 +166,12 @@ class Visualise:
                 audio_file, sr = librosa.load(file_name)
                 audio_file = librosa.util.utils.fix_length(audio_file, 4*sr)
 
-                S = librosa.feature.melspectrogram(
+                S_mels = librosa.feature.melspectrogram(
                     y=audio_file, sr=sr, n_mels=self.urDb.IMG_HEIGHT, fmax=8000)
-                S_dB = librosa.power_to_db(S, ref=np.max)
+                print(S_mels.shape)
+                print(S_mels.dtype)
+                print(S_mels)
+                S_dB = librosa.power_to_db(S_mels, ref=np.max)
                 librosa.display.specshow(
                     S_dB, x_axis='time', y_axis='mel', sr=sr, fmax=8000, ax=axs[row][col])
                 axs[row][col].tick_params(axis='x', labelsize=7, pad=0)
@@ -270,10 +273,10 @@ def main():
 
     print("Hello from Visualise!")
     vis = Visualise()
-    vis.plot_basic_spectrograms()
-    vis.plot_wave_from_audio()
+    # vis.plot_basic_spectrograms()
+    # vis.plot_wave_from_audio()
     vis.plot_mel_spectrograms()
-    vis.plot_mffc()
+    # vis.plot_mffc()
     print("End from Visualise!")
 
 

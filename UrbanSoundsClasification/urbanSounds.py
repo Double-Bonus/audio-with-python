@@ -129,7 +129,7 @@ def pad_trunc(sig, sr, max_ms):
 
 def spectrogram_image(y, sr, out_dir, out_name, hop_length, n_mels):
     # use log-melspectrogram
-    mels = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=n_mels, n_fft=hop_length*2, hop_length=hop_length)
+    mels = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=n_mels, n_fft=hop_length*4, hop_length=hop_length)
     # mels = librosa.feature.melspectrogram(y=y, sr=sr)
     
     if 1:
@@ -204,11 +204,11 @@ def save_stretched_wav_to_png():
 
         start_sample = 0 # starting at beginning
         length_samples = time_steps * hop_length
-        window = y[start_sample:start_sample+length_samples]
+        # window = y[start_sample:start_sample+length_samples]
 
         dir_name = "speed//fold" + str(df["fold"][i])
         
-        spectrogram_image(y=window, sr=sr, out_dir=dir_name , out_name=img_name, hop_length=hop_length, n_mels=n_mels)
+        spectrogram_image(y=y, sr=sr, out_dir=dir_name , out_name=img_name, hop_length=hop_length, n_mels=n_mels)
     print("Done saving pictures!")
     
 def load_spectograms(folder = "img_save"):
@@ -279,7 +279,7 @@ DATA_SAMPLES_CNT = 8732
 CLASSES_CNT = 10
 TEST_PORTION = 0.25
 IMG_HEIGHT = 128
-IMG_WIDTH = 128
+IMG_WIDTH = 173 # 88.200 / hopsize = 512
 
 start_time = datetime.now().strftime("%H:%M:%S")
 tf.random.set_seed(0)

@@ -204,15 +204,12 @@ def get_cnn_minKernelReg(img_h, img_w, class_cnt):
     alpha = 0.01 
     ac = LeakyReLU(alpha)
 
-
-    #1 2 kernel_regularizer=regularizers.l2(1e-3
-
     # Layer 1
     model.add(Conv2D(filters=64, kernel_size=7, kernel_regularizer=regularizers.l2(1e-3), activation=ac, input_shape = (img_h, img_w, 1)))
     model.add(MaxPooling2D((3, 3),strides=3 ))
 
     # Layer 2
-    model.add(Conv2D(filters=82, kernel_size=5, kernel_regularizer=regularizers.l2(1e-3), activation=ac, padding='valid' ))
+    model.add(Conv2D(filters=84, kernel_size=5, kernel_regularizer=regularizers.l2(1e-3), activation=ac, padding='valid' ))
     model.add(MaxPooling2D((2, 2), strides=2 ))
     model.add(Dropout(0.25))
 
