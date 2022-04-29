@@ -10,7 +10,7 @@ from tensorflow.keras import regularizers
 # Acc precentagies here show acc of testing with 1-st fold and trainging with other 9 (2-10)
 #####################################################
 
-#try something new, 74-77
+#acc 74-77, try something new
 def get_cnn_minKernelReg66(img_h, img_w, class_cnt):
     model = Sequential()
 
@@ -39,11 +39,9 @@ def get_cnn_minKernelReg66(img_h, img_w, class_cnt):
     model.compile(optimizer='adam', loss=keras.losses.CategoricalCrossentropy(), metrics=['accuracy'])
     return model
 
-#try bigger, acc 78, trains relly slow
+#acc 77-78, try bigger, trains relly slow
 def get_cnn_minKernelReg6556(img_h, img_w, class_cnt):
     model = Sequential()
-
-
     #1 2 kernel_regularizer=regularizers.l2(1e-3
 
     # Layer 1
@@ -66,6 +64,37 @@ def get_cnn_minKernelReg6556(img_h, img_w, class_cnt):
     model.add(Dense(class_cnt, activation = "softmax"))
     
     model.compile(optimizer='adam', loss=keras.losses.CategoricalCrossentropy(), metrics=['accuracy'])
+    return model
+
+# acc 77, more filters, add dropout
+def get_cnn_minKernelReg1244(img_h, img_w, class_cnt):
+    model = Sequential()
+    #1 2 kernel_regularizer=regularizers.l2(1e-3
+
+    # Layer 1
+    model.add(Conv2D(filters=48, kernel_size=5, kernel_regularizer=regularizers.l2(1e-3), activation='relu', input_shape = (img_h, img_w, 1)))
+    model.add(MaxPooling2D((3, 3),strides=3 ))
+    model.add(Dropout(0.25))
+
+
+    # Layer 2
+    model.add(Conv2D(filters=96, kernel_size=4, kernel_regularizer=regularizers.l2(1e-3), activation='relu', padding='valid' ))
+    model.add(MaxPooling2D((2, 2), strides=2 ))
+    model.add(Dropout(0.25))
+
+
+    # Layer 3
+    model.add(Conv2D(filters=96, kernel_size=3, activation='relu', padding='valid' ))    
+    model.add(GlobalAveragePooling2D())
+    
+    # Layer 4
+    model.add(Dense(96, activation = "relu"))
+    model.add(Dropout(0.5))
+
+
+    model.add(Dense(class_cnt, activation = "softmax"))
+    
+    model.compile(optimizer='adam', loss=keras.losses.CategoricalCrossentropy(label_smoothing=0.1), metrics=['accuracy'])
     return model
 
 # acc ~73-75     Change kernel_regularizer=regularizers.l2(1e-3) to kernel_regularizer=regularizers.l2(1e-4)
