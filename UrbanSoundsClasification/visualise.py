@@ -178,7 +178,33 @@ class Visualise:
                 index += 60  # get some differerent sounds
         plt.tight_layout()
         plt.show()
-                  
+        
+        
+    def plot_mffc(self):
+        fig, axs = plt.subplots(4, 2, figsize=(10, 10))
+        index = 0
+        for col in range(2):
+            for row in range(4):
+                file_name = self.urDb.BASE_PATH + "//audio//fold" + \
+                    str(self.urDb.df["fold"][index]) + '//' + \
+                    self.urDb.df["slice_file_name"][index]
+                audio_signal, sr = librosa.load(file_name)
+                audio_signal = librosa.util.utils.fix_length(audio_signal, 4*sr)
+                
+                
+                # librosa.feature.mfcc(y=y, sr=sr, hop_length=int(sr/100), n_fft=int(sr/40))
+                mfccs = librosa.feature.mfcc(y=audio_signal, sr=sr, n_mfcc=30, hop_length=1024)
+                # hop_length width of resulting array
+                
+                librosa.display.specshow(mfccs, 
+                         x_axis="time", 
+                         sr=sr, ax=axs[row][col])
+                axs[row][col].set_xlabel('time, s', fontsize=8)
+                axs[row][col].set_title('MFCC of: {}'.format(
+                    self.urDb.df["class"][index]), fontsize=12, pad=0)
+                index += 60  # get some differerent sounds
+        plt.tight_layout()
+        plt.show()       
 
     def plot_wave_from_audio(self):
         """ 
@@ -243,14 +269,11 @@ class Visualise:
 def main():
 
     print("Hello from Visualise!")
-    # vis = Visualise()
-    # vis.show_basic_data()
-    # vis.show_diff_classes()
-    # vis.show_mel_img()
-    # vis.plot_wave_from_audio()
-    Visualise().plot_basic_spectrograms()
-    Visualise().plot_wave_from_audio()
-    Visualise().plot_mel_spectrograms()
+    vis = Visualise()
+    vis.plot_basic_spectrograms()
+    vis.plot_wave_from_audio()
+    vis.plot_mel_spectrograms()
+    vis.plot_mffc()
     print("End from Visualise!")
 
 
