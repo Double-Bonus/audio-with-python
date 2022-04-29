@@ -60,7 +60,7 @@ def train_kFold(use_chaged_speed):
     for test_index in range(0, kfoldsCnt):
 
         
-        model = get_cnn_minKernelReg2(IMG_HEIGHT, IMG_WIDTH, CLASSES_CNT)
+        model = get_cnn_minKernelReg1244(IMG_HEIGHT, IMG_WIDTH, CLASSES_CNT)
         if test_index == 0:
             model.summary() # show summary before first traing
 
@@ -69,7 +69,7 @@ def train_kFold(use_chaged_speed):
         train_labels = keras.utils.to_categorical(y_train, num_classes=urbandDb.CLASSES_CNT)
         test_labels = keras.utils.to_categorical(y_test, num_classes=urbandDb.CLASSES_CNT)
         
-        epochsCnt = 150
+        epochsCnt = 170
         earlystopper = callbacks.EarlyStopping(patience=epochsCnt*0.3, verbose=1, monitor='val_accuracy')
         checkpointer = callbacks.ModelCheckpoint('models\\k_urban_model.h5', verbose=1, monitor='val_accuracy', save_best_only=True)
 
