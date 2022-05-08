@@ -60,7 +60,7 @@ def train_kFold(use_chaged_speed):
     for test_index in range(0, kfoldsCnt):
 
         
-        model = get_cnn_minKernelReg1244(IMG_HEIGHT, IMG_WIDTH, CLASSES_CNT)
+        model = get_cnn_minKernelReg(IMG_HEIGHT, IMG_WIDTH, CLASSES_CNT)
         if test_index == 0:
             model.summary() # show summary before first traing
 
@@ -279,7 +279,7 @@ DATA_SAMPLES_CNT = 8732
 CLASSES_CNT = 10
 TEST_PORTION = 0.25
 IMG_HEIGHT = 128
-IMG_WIDTH = 173 # 88.200 / hopsize = 512
+IMG_WIDTH = 173 # 88.200 / hopsize (512) = 172.23
 
 start_time = datetime.now().strftime("%H:%M:%S")
 tf.random.set_seed(0)

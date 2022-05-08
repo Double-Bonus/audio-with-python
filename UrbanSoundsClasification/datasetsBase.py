@@ -110,3 +110,38 @@ class UrbandSound8k:
         x_test =  x_test.reshape( x_test.shape[0],   self.FRAME_CNT, self.IMG_HEIGHT, (self.IMG_WIDTH // self.FRAME_CNT), 1)
 
         return x_train, x_test, y_train, y_test
+
+
+    # TODO: this could be calcualted before traing
+    def calculate_class_imbalance(self, testIndex):
+        cl_cnt = [1000, 429, 1000, 1000, 1000, 1000, 374, 1000, 929, 1000]
+        
+        testCnt = [0] * self.CLASSES_CNT
+        print(testCnt)
+        print(self.df)
+        # caclulate number of samples in fold and subtract for total to get number of samples in tests (faster than calculating all train)
+
+        
+        for i in range(0, self.DATA_SAMPLES_CNT):
+            # print("aaaa")
+            if(testIndex == (self.df["fold"][i] - 1)):
+                testCnt[self.df["classID"][i]] = testCnt[self.df["classID"][i]] + 1
+        print(testCnt)
+        
+        trainCnt = [0] * self.CLASSES_CNT
+        for i in range(0, self.CLASSES_CNT):
+            trainCnt[i] = cl_cnt[i] - testCnt[i]
+        
+        print(trainCnt)
+        
+
+def main():
+    
+    print("Db base!")
+    db = UrbandSound8k()
+    db.calculate_class_imbalance(0)
+    print("End from Db base!")
+
+
+if __name__ == "__main__":
+    main()
