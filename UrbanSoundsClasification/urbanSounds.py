@@ -285,7 +285,7 @@ DATA_SAMPLES_CNT = 8732
 CLASSES_CNT = 10
 TEST_PORTION = 0.25
 IMG_HEIGHT = 128
-IMG_WIDTH = 173 # 88.200 / hopsize = 512
+IMG_WIDTH = 173 # 88.200 / hopsize (512) = 172.23
 
 start_time = datetime.now().strftime("%H:%M:%S")
 tf.random.set_seed(0)

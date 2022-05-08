@@ -51,9 +51,37 @@ def load_spectograms():
         class_name[i] = cla[i]  
     return img_data_array, class_name
 
-def testAi():
-    # model = InceptionV3(weights='imagenet')
+def load_spectograms_1st_Fold():
+    tempWidth = 173
+    tempHeight = 128
+    
+    print("Loading images from drive to RAM!")
+    img_data_array = np.zeros((873, tempHeight, tempWidth))
+    class_name = np.zeros((873, 1))
+    
+    cla = np.array(df["classID"])
+    idx = 0
 
+    # for i in range(0, DATA_SAMPLES_CNT):
+    for i in range(0, 2000):
+        if df["fold"][i] == 1: # load only from first fold
+            image_path = "processed//fold1//out" + str(i+1) + "_" + str(df["class"][i]) + ".png"
+            image= cv2.imread(image_path, cv2.COLOR_BGR2RGB)
+            if image is None:
+                print("Error, image was not found from: " + image_path)
+                quit()
+            # image=cv2.resize(image, (IMG_HEIGHT, IMG_WIDTH),interpolation = cv2.INTER_AREA)
+            image = np.array(image)
+            image = image.astype('float32')
+            image /= 255
+            
+            img_data_array[idx] = image 
+            class_name[idx] = cla[i]  
+            idx = idx + 1
+    return img_data_array, class_name
+
+def explainAlibi():
+    # https://docs.seldon.io/projects/alibi/en/stable/examples/anchor_image_imagenet.html
     model = keras.models.load_model('models/urban_model.h5')
     
     image_shape = (IMG_HEIGHT, IMG_WIDTH, 1)
@@ -95,7 +123,134 @@ def testAi():
         savePath_b = 'XaiRes/explainAudio_' + str(i + 1) + '_b' + '.png'
         plt.savefig(savePath_b)
         
-        
-        
+def explainShapEXAMPLE():
+   # https://shap.readthedocs.io/en/latest/example_notebooks/image_examples/image_classification/Explain%20ResNet50%20using%20the%20Partition%20explainer.html
+    import json
+    from tensorflow.keras.applications.resnet50 import ResNet50, preprocess_input
+    import shap
+    # load pre-trained model and data
+    model = ResNet50(weights='imagenet')
+    X, y = shap.datasets.imagenet50()
 
-testAi()
+    # getting ImageNet 1000 class names
+    url = "https://s3.amazonaws.com/deep-learning-models/image-models/imagenet_class_index.json"
+    with open(shap.datasets.cache(url)) as file:
+        class_names = [v[1] for v in json.load(file).values()]
+    #print("Number of ImageNet classes:", len(class_names))
+    #print("Class names:", class_names)
+    # python function to get model output; replace this function with your own model function.
+    def f(x):
+        tmp = x.copy()
+        preprocess_input(tmp)
+        return model(tmp)
+    
+    
+    print(X[0].shape)
+    print(X[0].shape)
+    print(X[0].shape)
+
+    # define a masker that is used to mask out partitions of the input image.
+    masker_blur = shap.maskers.Image("blur(128,128)", X[0].shape)
+    
+    
+    
+    # create an explainer with model and image masker
+    explainer_blur = shap.Explainer(f, masker_blur, output_names=class_names)
+
+    # here we explain two images using 500 evaluations of the underlying model to estimate the SHAP values
+    shap_values_fine = explainer_blur(X[1:3], max_evals=5000, batch_size=50, outputs=shap.Explanation.argsort.flip[:4])
+    
+    
+
+    # output with shap values
+    shap.image_plot(shap_values_fine)
+
+def explainShap():
+    import shap
+    
+    # model = keras.models.load_model('models/urban_model.h5') # imput (None, 128, 128, 1)
+    model = keras.models.load_model('models/k_urban_model.h5') # imput (None, 128, 173, 1)
+    X_data, Y_data = load_spectograms_1st_Fold()
+    
+    X_data = X_data.reshape(X_data.shape[0], 128, 173, 1)
+    
+    def make_predictions(x):
+        # X_batch = vectorizer.transform(X_batch_text).toarray()
+        preds = model.predict(x)
+        return preds
+
+    class_names = [
+    'Kondicionierius',
+    'Mašinos signalas',
+    'Vaikų žaidimai',
+    'Šuns lojimas',
+    'Gręžimas',
+    'Variklio darbas',
+    'Ginklo šūvis',
+    'Skaldymo kūjis',
+    'Sirena',
+    'Muzika']
+
+    # define a masker that is used to mask out partitions of the input image.
+    masker_blur = shap.maskers.Image("blur(128,128)", X_data[0].shape)
+    
+    
+    # create an explainer with model and image masker
+    explainer_blur = shap.Explainer(make_predictions, masker_blur, output_names = class_names)
+
+    for i in range(20, 21): # number of images to explain * 3 (Note that this api takes long time to calculate)
+        # here we explain images using 500 evaluations of the underlying model to estimate the SHAP values
+        shap_values_fine = explainer_blur(X_data[i*3:(i+1)*3], max_evals=6000, batch_size=50, outputs=shap.Explanation.argsort.flip[:4])
+        print('Using image nr: ', i*3, '-', (i+1)*3)
+        shap.image_plot(shap_values_fine)
+    
+def explainLime():
+    import lime
+    from lime import lime_image
+    from skimage.segmentation import mark_boundaries
+    import matplotlib.pyplot as plt
+    import random   
+    
+    model = keras.models.load_model('models/k_urban_model.h5') # imput (None, 128, 173, 1)
+    X_data, Y_data = load_spectograms_1st_Fold()
+    
+    # X_data = X_data.reshape(X_data.shape[0], 128, 173, 1)
+    
+    def new_predict_fn(images):
+        # images = convert_to_1channel(images)
+        gray = images[:,:,:,0]
+
+        return model.predict(gray)
+                         
+                         
+    print(X_data.shape)                       
+                         
+    explainer = lime_image.LimeImageExplainer(random_state=42)
+    explanation = explainer.explain_instance(
+            X_data[10], 
+            new_predict_fn
+    )
+    plt.imshow(X_data[10])
+    print(X_data.shape)
+    X_data_pred = X_data.reshape(X_data.shape[0], 128, 173, 1)
+    test = X_data_pred[8]
+    
+    
+    print("\n\n\n\n\n")
+    print(test.shape)
+    print("\n\n\n\n\n")
+    
+    image, mask = explanation.get_image_and_mask(
+            model.predict(test).argmax(axis=1)[0],
+            positive_only=True, 
+            hide_rest=False)
+    plt.imshow(mark_boundaries(image, mask))
+        
+if 0: # Alibi api
+    explainAlibi()
+elif 0: # Lime TODO: FIX this
+    explainLime()
+else: # Shap
+    explainShap()
+    
+    
