@@ -47,6 +47,46 @@ class UrbandSound8k:
         }
         return class_weight
 
+    # TODO: this could be calcualted before traing
+    def calculate_class_imbalance(self, testIndex):
+        cl_cnt = [1000, 429, 1000, 1000, 1000, 1000, 374, 1000, 929, 1000]
+        
+        testCnt = [0] * self.CLASSES_CNT
+
+        # caclulate number of samples in fold and subtract for total to get number of samples in tests (faster than calculating all train)
+        for i in range(0, self.DATA_SAMPLES_CNT):
+            # print("aaaa")
+            if(testIndex == (self.df["fold"][i] - 1)):
+                testCnt[self.df["classID"][i]] = testCnt[self.df["classID"][i]] + 1
+        print(testCnt)
+        
+        trainCnt = [0] * self.CLASSES_CNT
+        for i in range(0, self.CLASSES_CNT):
+            trainCnt[i] = cl_cnt[i] - testCnt[i]
+
+        print(trainCnt)
+
+        weights = [0] * self.CLASSES_CNT
+        for i in range(self.CLASSES_CNT):
+            weights[i] = (1 / trainCnt[i]) * (np.sum(trainCnt) / self.CLASSES_CNT)
+        
+        class_weight = {0: weights[0],
+        1: weights[1],
+        2: weights[2],
+        3: weights[3],
+        4: weights[4],
+        5: weights[5],
+        6: weights[6],
+        7: weights[7],
+        8: weights[8],
+        9: weights[9]
+        }
+        return class_weight
+
+            
+        
+    
+
     def prepare_data_kFold(self, test_index, kfoldsCnt, folds_cnt, use_chaged_speed = False):
         print("Using " + str(test_index+1) + " fold out of: " + str(kfoldsCnt))
         x_train = np.zeros((self.DATA_SAMPLES_CNT - folds_cnt[test_index], self.IMG_HEIGHT, self.IMG_WIDTH))
@@ -108,5 +148,43 @@ class UrbandSound8k:
 
         x_train = x_train.reshape(x_train.shape[0],  self.FRAME_CNT, self.IMG_HEIGHT, (self.IMG_WIDTH // self.FRAME_CNT), 1)
         x_test =  x_test.reshape( x_test.shape[0],   self.FRAME_CNT, self.IMG_HEIGHT, (self.IMG_WIDTH // self.FRAME_CNT), 1)
+
+        return x_train, x_test, y_train, y_test
+
+
+    # LSTM raw -------------------------------------------------------------------
+
+    # def HARCODINTI???
+    def calculate_number_of_classes(self):
+        folds_cnt = np.zeros(self.CLASSES_CNT, dtype=int)
+        for i in range(0, self.DATA_SAMPLES_CNT):
+            folds_cnt[self.df["fold"][i] -1 ]  =  folds_cnt[self.df["fold"][i] -1] + 1
+        return folds_cnt
+
+
+
+    # fold count turetu buti klases viduje!
+    def prepare_data_kFold_LSTM_1dCNN(self, test_index, kfoldsCnt, X_data, Y_data, audioLen = (4*22050)):
+        folds_cnt = self.calculate_number_of_classes()
+        print("Using " + str(test_index+1) + " fold out of: " + str(kfoldsCnt))
+        x_train = np.zeros((self.DATA_SAMPLES_CNT - folds_cnt[test_index], audioLen))
+        x_test =  np.zeros((folds_cnt[test_index],                         audioLen))
+        y_train = np.zeros((self.DATA_SAMPLES_CNT - folds_cnt[test_index], 1))
+        y_test =  np.zeros((folds_cnt[test_index], 1))
+
+        test_i = 0
+        train_i = 0
+        for i in range(0, self.DATA_SAMPLES_CNT):
+            if test_index == (self.df["fold"][i]-1):
+                x_test[test_i] = X_data[i] 
+                y_test[test_i] = Y_data[i]
+                test_i = test_i + 1
+            else:
+                x_train[train_i] = X_data[i] 
+                y_train[train_i] = Y_data[i]
+                train_i = train_i + 1
+
+        # x_train = x_train.reshape(x_train.shape[0],  self.FRAME_CNT, self.IMG_HEIGHT, (self.IMG_WIDTH // self.FRAME_CNT), 1)
+        # x_test =  x_test.reshape( x_test.shape[0],   self.FRAME_CNT, self.IMG_HEIGHT, (self.IMG_WIDTH // self.FRAME_CNT), 1)
 
         return x_train, x_test, y_train, y_test

@@ -7,7 +7,6 @@ from tensorflow import keras
 
 import matplotlib.pyplot as plt
 import numpy as np
-from tensorflow.keras.applications.inception_v3 import InceptionV3, preprocess_input, decode_predictions
 from alibi.datasets import load_cats
 from alibi.explainers import AnchorImage
 import cv2
@@ -53,7 +52,7 @@ def load_spectograms():
     return img_data_array, class_name
 
 def testAi():
-    model = InceptionV3(weights='imagenet')
+    # model = InceptionV3(weights='imagenet')
 
     model = keras.models.load_model('models/urban_model.h5')
     

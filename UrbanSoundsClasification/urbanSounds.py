@@ -48,6 +48,8 @@ def train_kFold(use_chaged_speed):
         use_chaged_speed ([type=bool]): If changed speed audio is used
     """
     accuracies = np.zeros((CLASSES_CNT, 1))
+    F1 = np.zeros((CLASSES_CNT, 1))
+    F1_weight = np.zeros((CLASSES_CNT, 1))
     
     folds_cnt = np.zeros(CLASSES_CNT, dtype=int)
     for i in range(0, DATA_SAMPLES_CNT):
@@ -56,11 +58,10 @@ def train_kFold(use_chaged_speed):
     urbandDb = UrbandSound8k(IMG_HEIGHT, IMG_WIDTH) # create class instance for dataset
            
     # 10-fold cross validation
-    kfoldsCnt = 1
+    kfoldsCnt = 10
     for test_index in range(0, kfoldsCnt):
 
-        
-        model = get_cnn_minKernelReg1244(IMG_HEIGHT, IMG_WIDTH, CLASSES_CNT)
+        model = get_cnn_minKernelReg778(IMG_HEIGHT, IMG_WIDTH, CLASSES_CNT)
         if test_index == 0:
             model.summary() # show summary before first traing
 
@@ -73,12 +74,12 @@ def train_kFold(use_chaged_speed):
         earlystopper = callbacks.EarlyStopping(patience=epochsCnt*0.3, verbose=1, monitor='val_accuracy')
         checkpointer = callbacks.ModelCheckpoint('models\\k_urban_model.h5', verbose=1, monitor='val_accuracy', save_best_only=True)
 
-        if 0: # use weight for class inbalandce
-            clsWeight = urbandDb.get_class_weights()
-            hist = model.fit(x_train, train_labels, epochs = epochsCnt, batch_size = 64, verbose = 1, class_weight = clsWeight,
+        if 1: # use weight for class inbalandce
+            clsWeight = urbandDb.calculate_class_imbalance(test_index)
+            hist = model.fit(x_train, train_labels, epochs = epochsCnt, batch_size = 64, verbose = 0, class_weight = clsWeight,
                validation_data=(x_test, test_labels), callbacks = [earlystopper, checkpointer])
         else:
-            hist = model.fit(x_train, train_labels, epochs = epochsCnt, batch_size = 64, verbose = 1,
+            hist = model.fit(x_train, train_labels, epochs = epochsCnt, batch_size = 64, verbose = 0,
                validation_data=(x_test, test_labels), callbacks = [earlystopper, checkpointer])
     
         model = keras.models.load_model('models\\k_urban_model.h5')
@@ -87,16 +88,21 @@ def train_kFold(use_chaged_speed):
 
         rounded_labels=np.argmax(test_labels, axis=1) # from one hot to label, right?
         accuracies[test_index] = Functionality.calculate_accuracy(rounded_labels, y_pred)
-        print("Temp k-Folds Accuracy: {0}".format(np.mean(accuracies)))
+        print("Temp k-Folds Accuracies: {0} ".format(accuracies))
+ 
+        F1[test_index], F1_weight[test_index] = Functionality.calculate_F1score(rounded_labels, y_pred)
+        print("Temp F1 scores: {0} ".format(F1))
+        print("Temp F1 with weight scores: {0} ".format(F1_weight))
 
-        Functionality.calculate_F1score(rounded_labels, y_pred)
+
         
-        if 1: # initial results
-            draw_model_results(hist)            
-            log_confusion_matrix(model, x_test, y_test)
-            
-        if 1: # Save history for latte analysis
-            np.save('my_history.npy',hist.history) # Load with history=np.load('my_history.npy',allow_pickle='TRUE').item() 
+        if 0: # initial results
+            if 1: # visulise
+                draw_model_results(hist)            
+                log_confusion_matrix(model, x_test, y_test)
+                
+            if 1: # Save history for latter analysis
+                np.save('my_history.npy',hist.history) # Load with history=np.load('my_history.npy',allow_pickle='TRUE').item() 
         
 
         
@@ -129,7 +135,7 @@ def pad_trunc(sig, sr, max_ms):
 
 def spectrogram_image(y, sr, out_dir, out_name, hop_length, n_mels):
     # use log-melspectrogram
-    mels = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=n_mels, n_fft=hop_length*4, hop_length=hop_length)
+    mels = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=n_mels, n_fft=hop_length*2, hop_length=hop_length)
     # mels = librosa.feature.melspectrogram(y=y, sr=sr)
     
     if 1:
@@ -256,7 +262,7 @@ def train_CNN(X, Y, test_portion = 0.25):
     train_labels = keras.utils.to_categorical(y_train, num_classes=CLASSES_CNT)
     test_labels = keras.utils.to_categorical(y_test, num_classes=CLASSES_CNT)
     
-    model = get_cnn_minKernelReg_12(IMG_HEIGHT, IMG_WIDTH, CLASSES_CNT)
+    model = get_cnn_minKernelReg778(IMG_HEIGHT, IMG_WIDTH, CLASSES_CNT)
     model.summary()
 
     epochCnt = 160

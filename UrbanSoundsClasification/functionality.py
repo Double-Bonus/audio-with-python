@@ -18,23 +18,27 @@ class Functionality:
     def calculate_accuracy(y_true, y_pred):
         return accuracy_score(y_true, y_pred)
 
-    def calculate_F1score(y_true, y_pred):
+    def calculate_F1score(y_true, y_pred, verbose = False):
         av_none = f1_score(y_true, y_pred, average=None)
-        print("Using None average")
-        print(av_none)
-        print(np.mean(av_none))
-
         av_micro = f1_score(y_true, y_pred, average='micro')
-        print("Using micro average")
-        print(av_micro)
-
         av_macro = f1_score(y_true, y_pred, average='macro')
-        print("Using macro average")
-        print(av_macro)
-
         av_weighted = f1_score(y_true, y_pred, average='weighted')
-        print("Using weighted average")
-        print(av_weighted)
+
+        if verbose:
+            print("Using None average")
+            print(av_none)
+            print(np.mean(av_none))
+
+            print("Using micro average")
+            print(av_micro)
+
+            print("Using macro average")
+            print(av_macro)
+
+            print("Using weighted average")
+            print(av_weighted)
+        return av_macro, av_weighted
+
     
     def scale_minmax(X, min=0.0, max=1.0):
         X_std = (X - X.min()) / (X.max() - X.min())

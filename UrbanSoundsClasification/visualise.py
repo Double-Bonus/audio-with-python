@@ -78,15 +78,15 @@ def draw_model_results(model_history):
     plt.subplot(121)
     plt.plot(model_history.history['accuracy'], 'r')
     plt.plot(model_history.history['val_accuracy'], 'b')
-    plt.ylabel('accuracy, r - train, b - val')
-    plt.xlabel('epoch')
+    plt.ylabel('Tikslumas, r - train, b - val')
+    plt.xlabel('Epocha')
     plt.grid(b=True)
 
     plt.subplot(122)
     plt.plot(model_history.history['loss'], 'r')
     plt.plot(model_history.history['val_loss'], 'b')
-    plt.ylabel('Loss, r - train, b - val')
-    plt.xlabel('epoch')
+    plt.ylabel('Nuostolis (angl. loss), r - train, b - val')
+    plt.xlabel('Epocha')
     plt.grid(b=True)
     plt.show()
 
@@ -182,7 +182,6 @@ class Visualise:
         plt.tight_layout()
         plt.show()
         
-        
     def plot_mffc(self):
         fig, axs = plt.subplots(4, 2, figsize=(10, 10))
         index = 0
@@ -193,7 +192,6 @@ class Visualise:
                     self.urDb.df["slice_file_name"][index]
                 audio_signal, sr = librosa.load(file_name)
                 audio_signal = librosa.util.utils.fix_length(audio_signal, 4*sr)
-                
                 
                 # librosa.feature.mfcc(y=y, sr=sr, hop_length=int(sr/100), n_fft=int(sr/40))
                 mfccs = librosa.feature.mfcc(y=audio_signal, sr=sr, n_mfcc=30, hop_length=1024)
@@ -268,6 +266,41 @@ class Visualise:
         plt.tight_layout()
         plt.show()
 
+    def plot_history_results(self, history):
+        plt.subplot(121)
+        plt.plot(history['accuracy'], 'r')
+        plt.plot(history['val_accuracy'], 'b')
+        plt.ylabel('accuracy, r - train, b - val')
+        plt.xlabel('epoch')
+        plt.grid(b=True)
+
+        plt.subplot(122)
+        plt.plot(history['loss'], 'r')
+        plt.plot(history['val_loss'], 'b')
+        plt.ylabel('Loss, r - train, b - val')
+        plt.xlabel('epoch')
+        plt.grid(b=True)
+        plt.show()
+
+    def plot_to_compare_models(self, history_1, history_2):
+        plt.subplot(121)
+        plt.plot(history_1['accuracy'], 'r')
+        plt.plot(history_2['accuracy'], 'r--')
+        plt.plot(history_1['val_accuracy'], 'b')
+        plt.plot(history_2['val_accuracy'], 'g')
+        plt.ylabel('Tikslumas, raudona - treniravimo, žalia/mėlyna - testavimo')
+        plt.xlabel('Epocha')
+        plt.grid(b=True)
+
+        plt.subplot(122)
+        plt.plot(history_1['loss'], 'r')
+        plt.plot(history_1['val_loss'], 'b')
+        plt.plot(history_2['loss'], 'r--')
+        plt.plot(history_2['val_loss'], 'g')
+        plt.ylabel('Nuostolis (angl. loss), raudona - treniravimo, žalia/mėlyna - testavimo')
+        plt.xlabel('Epocha')
+        plt.grid(b=True)
+        plt.show()    
 
 def main():
 
@@ -275,8 +308,19 @@ def main():
     vis = Visualise()
     # vis.plot_basic_spectrograms()
     # vis.plot_wave_from_audio()
-    vis.plot_mel_spectrograms()
+    # vis.plot_mel_spectrograms()
     # vis.plot_mffc()
+
+
+    hist=np.load('overfit_model/my_history_overfit.npy',allow_pickle='TRUE').item()
+    # vis.plot_history_results(hist)
+
+    hist2=np.load('overfit_model/first_modGood-noSmoot/my_history.npy',allow_pickle='TRUE').item()
+    # vis.plot_history_results(hist2)
+
+    vis.plot_to_compare_models(hist, hist2)
+
+
     print("End from Visualise!")
 
 
