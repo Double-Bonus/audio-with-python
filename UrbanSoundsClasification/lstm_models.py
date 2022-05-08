@@ -5,7 +5,7 @@ from keras.layers import TimeDistributed, LSTM, ConvLSTM2D
 
 from keras import regularizers
     
-
+# using 13 
 def get_lstm(x_train, class_cnt, modelType):
     lstm = Sequential()
     cnn = Sequential()

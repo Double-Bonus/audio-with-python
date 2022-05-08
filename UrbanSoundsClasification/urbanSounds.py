@@ -71,7 +71,7 @@ def train_kFold(use_chaged_speed):
         test_labels = keras.utils.to_categorical(y_test, num_classes=urbandDb.CLASSES_CNT)
         
         epochsCnt = 170
-        earlystopper = callbacks.EarlyStopping(patience=epochsCnt*0.3, verbose=1, monitor='val_accuracy')
+        earlystopper = callbacks.EarlyStopping(patience=epochsCnt*0.25, verbose=1, monitor='val_accuracy')
         checkpointer = callbacks.ModelCheckpoint('models\\k_urban_model.h5', verbose=1, monitor='val_accuracy', save_best_only=True)
 
         if 1: # use weight for class inbalandce
@@ -134,17 +134,23 @@ def pad_trunc(sig, sr, max_ms):
     return (sig, sr)
 
 def spectrogram_image(y, sr, out_dir, out_name, hop_length, n_mels):
-    # use log-melspectrogram
-    mels = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=n_mels, n_fft=hop_length*2, hop_length=hop_length)
-    # mels = librosa.feature.melspectrogram(y=y, sr=sr)
-    
-    if 1:
-        mels = np.log(mels + 1e-9) # add small number to avoid log(0)
-    else:  #testing !
-        mels = np.mean(mels, axis=0)
-
+    if 0: # use log-melspectrogram
+        spec = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=n_mels, n_fft=hop_length*2, hop_length=hop_length)
+        # mels = librosa.feature.melspectrogram(y=y, sr=sr)
+        
+        if 1:
+            spec = np.log(spec + 1e-9) # add small number to avoid log(0)
+        else:  #testing !
+            spec = np.mean(spec, axis=0)
+    else: # use log-spectrogram (NOT MELL!)
+        stft = librosa.stft(y=y, n_fft=256, hop_length=512)  # STFT of y
+        spec = librosa.amplitude_to_db(np.abs(stft), ref=np.max)
+        spec = np.delete(spec, -1, axis=0)
+        
+        
+        
     # min-max scale to fit inside 8-bit range
-    img = Functionality.scale_minmax(mels, 0, 255).astype(np.uint8)
+    img = Functionality.scale_minmax(spec, 0, 255).astype(np.uint8)
     img = np.flip(img, axis=0) # put low frequencies at the bottom in image
     img = 255 - img            # invert. make black==more energy
 
