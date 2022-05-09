@@ -20,25 +20,18 @@ DATA_SAMPLES_CNT = 8732
 CLASSES_CNT = 10
 FRAME_CNT = 8 # number of frames for lstm
 TEST_PORTION = 0.25
-IMG_HEIGHT = 64
-IMG_WIDTH = 128
+IMG_HEIGHT = 128
+IMG_WIDTH = 160
 df = pd.read_csv("Urband_sounds//UrbanSound8K//metadata//UrbanSound8K.csv")
 
 if IMG_WIDTH % FRAME_CNT != 0:
     print("ERROR: IMG_WIDTH must be divisible by FRAME_CNT")
     exit()
 
-
 def spectrogram_image(y, sr, out_dir, out_name, hop_length, n_mels):
     # use log-melspectrogram
     mels = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=n_mels, n_fft=hop_length*2, hop_length=hop_length)
-    # mels = librosa.feature.melspectrogram(y=y, sr=sr)
-    
-    if 1:
-        mels = np.log(mels + 1e-9) # add small number to avoid log(0)
-    else:  #testing !
-        mels = np.mean(mels, axis=0)
-
+    mels = np.log(mels + 1e-9) # add small number to avoid log(0)
     # min-max scale to fit inside 8-bit range
     img = Functionality.scale_minmax(mels, 0, 255).astype(np.uint8)
     img = np.flip(img, axis=0) # put low frequencies at the bottom in image
@@ -50,7 +43,7 @@ def spectrogram_image(y, sr, out_dir, out_name, hop_length, n_mels):
     
     cv2.imwrite((out_dir + "\\" + out_name), img)
     
-def save_wav_to_png(use_Kfold = False):
+def save_wav_to_png():
     """ 
     Saves spectograms data from sound files as png pictures
     """
@@ -63,22 +56,15 @@ def save_wav_to_png(use_Kfold = False):
         hop_length = 512           # number of samples per time-step in spectrogram
         n_mels = IMG_HEIGHT        # number of bins in spectrogram. Height of image
         time_steps = IMG_WIDTH - 1 # number of time-steps. Width of image (TODO FIX it add 1 px to width!!)
-        
-        
-        # sr * 4 = size!!!
-        # 22050 * 4 = 88200
-        # y = librosa.util.utils.fix_length(y, 75000)  ## suppose it works????? It just adds white space!!!!
+    
         y = librosa.util.utils.fix_length(y, 88200)  ## suppose it works????? It just adds white space!!!!
-        # y, sr = pad_trunc(y, sr, 4000)
         
         start_sample = 0 # starting at beginning
         length_samples = time_steps * hop_length
         window = y[start_sample:start_sample+length_samples]
         
-        if use_Kfold:
-            dir_name = "processed//fold" + str(df["fold"][i])
-        else:
-            dir_name = "img_save_lstmCnn_f" + str(FRAME_CNT)
+
+        dir_name = "img_save_lstmCnn_f" + str(FRAME_CNT)
             
         if FRAME_CNT == 2:    
             a_win = window[:len(window)//FRAME_CNT]
@@ -157,8 +143,7 @@ def train(x_train, y_train, x_test, y_test, urDb, epochs, verbose = False):
         except:     print(" ")
         finally:    lstm.summary()
 
-
-    earlystopper = callbacks.EarlyStopping(patience=epochs*0.35, verbose=1, monitor='val_accuracy')
+    earlystopper = callbacks.EarlyStopping(patience=epochs*0.30, verbose=1, monitor='val_accuracy')
     checkpointer = callbacks.ModelCheckpoint('models\\lstmModel.h5', verbose=1, monitor='val_accuracy', save_best_only=True)
 
     # compile, fit, evaluate
@@ -179,10 +164,10 @@ def train(x_train, y_train, x_test, y_test, urDb, epochs, verbose = False):
     y_pred = np.argmax(pred, axis=1) 
     rounded_labels=np.argmax(y_test, axis=1)
     
-    if 1: # show F1 score
-        Functionality.calculate_F1score(rounded_labels, y_pred)
+    av_macro, av_weighted = Functionality.calculate_F1score(rounded_labels, y_pred)
+    acc = Functionality.calculate_accuracy(rounded_labels, y_pred)
     
-    return Functionality.calculate_accuracy(rounded_labels, y_pred)  
+    return acc, av_macro, av_weighted
     
     
 ################################################################
@@ -199,6 +184,8 @@ if 1: #kfold
     urbandDb.set_frame_cnt(FRAME_CNT)
     
     accuracies = np.zeros((urbandDb.CLASSES_CNT, 1))
+    f1 = np.zeros((urbandDb.CLASSES_CNT, 1))
+    f1_w = np.zeros((urbandDb.CLASSES_CNT, 1))
     
     folds_cnt = np.zeros(urbandDb.CLASSES_CNT, dtype=int)
     for i in range(0, urbandDb.DATA_SAMPLES_CNT):
@@ -208,11 +195,15 @@ if 1: #kfold
     kfoldsCnt = 10
     for test_index in range(0, kfoldsCnt):
         x_train, x_test, y_train, y_test = urbandDb.prepare_data_kFold_LSTM(test_index, kfoldsCnt, folds_cnt, X_data, Y_data)
-        accuracies[test_index] = train(x_train, y_train, x_test, y_test, urbandDb, epochs=150, verbose=(0 == test_index))
-        print("Temp k-Folds Accuracy: {0}".format(np.mean(accuracies)))
+        accuracies[test_index], f1[test_index], f1_w[test_index] = train(x_train, y_train, x_test, y_test, urbandDb, epochs=150, verbose=(0 == test_index))
+        print("Temp k-Folds Accuracy: {0}".format(accuracies))
+        print("Temp k-Folds F1 score: {0}".format(f1))
+        print("Temp k-Folds F1 wirght score: {0}".format(f1_w))
         
     print("Average 10 Folds Accuracy: {0}".format(np.mean(accuracies)))
     print("Standart deviation of accuracy: {0}".format(np.std(accuracies)))
+    print("Average 10 Folds F1 score: {0}".format(np.mean(f1)))
+    print("Average 10 Folds F1 weight score: {0}".format(np.mean(f1_w)))
 
 else:
     x_train, x_test, y_train, y_test = sklearn.model_selection.train_test_split(X_data, Y_data, test_size=TEST_PORTION, random_state=7)
