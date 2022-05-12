@@ -240,7 +240,7 @@ class Visualise:
         fig, axs = plt.subplots(4, 2, figsize=(10, 10))
         index = 0
         for col in range(2):
-            for row in range(4):
+            for row in range(1):
                 file_name = self.urDb.BASE_PATH + "//audio//fold" + \
                     str(self.urDb.df["fold"][index]) + '//' + \
                     self.urDb.df["slice_file_name"][index]
@@ -252,6 +252,19 @@ class Visualise:
                 stft = librosa.stft(
                     audio_file, n_fft=FRAME_SIZE, hop_length=HOP_SIZE)  # STFT of y
                 S_db = librosa.amplitude_to_db(np.abs(stft), ref=np.max)
+                print(S_db.shape)
+
+                stft = librosa.stft(y=audio_file, n_fft=256, hop_length=512)  # STFT of y
+                spec = librosa.amplitude_to_db(np.abs(stft), ref=np.max)
+                print(spec.shape)
+                spec = np.delete(spec, -1, axis=0)
+                for i in range(0, 13): # thera are clearlly easier ways!!!!
+                    spec = np.delete(spec, -1, axis=1)
+
+                print(spec.shape)
+
+
+
                 librosa.display.specshow(S_db,
                                          sr=sample_rate,
                                          hop_length=HOP_SIZE,
@@ -306,19 +319,19 @@ def main():
 
     print("Hello from Visualise!")
     vis = Visualise()
-    # vis.plot_basic_spectrograms()
+    vis.plot_basic_spectrograms()
     # vis.plot_wave_from_audio()
     # vis.plot_mel_spectrograms()
     # vis.plot_mffc()
 
 
-    hist=np.load('overfit_model/my_history_overfit.npy',allow_pickle='TRUE').item()
-    # vis.plot_history_results(hist)
+    # hist=np.load('overfit_model/my_history_overfit.npy',allow_pickle='TRUE').item()
+    # # vis.plot_history_results(hist)
 
-    hist2=np.load('overfit_model/first_modGood-noSmoot/my_history.npy',allow_pickle='TRUE').item()
-    # vis.plot_history_results(hist2)
+    # hist2=np.load('overfit_model/first_modGood-noSmoot/my_history.npy',allow_pickle='TRUE').item()
+    # # vis.plot_history_results(hist2)
 
-    vis.plot_to_compare_models(hist, hist2)
+    # vis.plot_to_compare_models(hist, hist2)
 
 
     print("End from Visualise!")

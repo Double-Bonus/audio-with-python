@@ -20,6 +20,7 @@ class UrbandSound8k:
         self.CLASSES_CNT = 10
         self.df = pd.read_csv(self.BASE_PATH + "//metadata//UrbanSound8K.csv")
         self.FRAME_CNT = 1
+        self.foldsCnt = 10
         
     def get_class_weights(self):
         """ 

@@ -21,7 +21,7 @@ from tensorflow import keras
 from tensorflow.keras import callbacks
 
 # Project Specific Libraries
-import os
+import os, sys
 import librosa
 import librosa.display
 import torch
@@ -59,7 +59,11 @@ def train_kFold(use_chaged_speed):
            
     # 10-fold cross validation
     kfoldsCnt = 10
-    for test_index in range(0, kfoldsCnt):
+
+    argVal = int(sys.argv[1]) 
+
+    for test_index in range(argVal-1, argVal):
+    # for test_index in range(0, kfoldsCnt):
 
         model = get_cnn_minKernelReg778(IMG_HEIGHT, IMG_WIDTH, CLASSES_CNT)
         if test_index == 0:
@@ -134,17 +138,23 @@ def pad_trunc(sig, sr, max_ms):
     return (sig, sr)
 
 def spectrogram_image(y, sr, out_dir, out_name, hop_length, n_mels):
-    # use log-melspectrogram
-    mels = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=n_mels, n_fft=hop_length*2, hop_length=hop_length)
-    # mels = librosa.feature.melspectrogram(y=y, sr=sr)
-    
-    if 1:
-        mels = np.log(mels + 1e-9) # add small number to avoid log(0)
-    else:  #testing !
-        mels = np.mean(mels, axis=0)
+    if 0: # use log-melspectrogram
+        spec = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=n_mels, n_fft=hop_length*2, hop_length=hop_length)
+        # mels = librosa.feature.melspectrogram(y=y, sr=sr)
+        
+        if 1:
+            spec = np.log(spec + 1e-9) # add small number to avoid log(0)
+        else:  #testing !
+            spec = np.mean(spec, axis=0)
+    elif 0: # use log-spectrogram (NOT MELL!)
+        stft = librosa.stft(y=y, n_fft=256, hop_length=512)  # STFT of y
+        spec = librosa.amplitude_to_db(np.abs(stft), ref=np.max)
+        spec = np.delete(spec, -1, axis=0)
+    else: # mfcc
+        spec = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=40, hop_length=512)
 
     # min-max scale to fit inside 8-bit range
-    img = Functionality.scale_minmax(mels, 0, 255).astype(np.uint8)
+    img = Functionality.scale_minmax(spec, 0, 255).astype(np.uint8)
     img = np.flip(img, axis=0) # put low frequencies at the bottom in image
     img = 255 - img            # invert. make black==more energy
 
@@ -285,6 +295,7 @@ DATA_SAMPLES_CNT = 8732
 CLASSES_CNT = 10
 TEST_PORTION = 0.25
 IMG_HEIGHT = 128
+# IMG_HEIGHT = 60 #if MFCC, TODO FIX somehow!
 IMG_WIDTH = 173 # 88.200 / hopsize = 512
 
 start_time = datetime.now().strftime("%H:%M:%S")
