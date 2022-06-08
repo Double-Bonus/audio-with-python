@@ -16,61 +16,109 @@ import librosa.display
 from visualise import *
 from functionality import *
 
-audio_fpath = "..//ESC-50-master//audio"
-audio_clips = os.listdir(audio_fpath)
-print("No. of .wav files in audio folder = ",len(audio_clips))
-
-BASE_PATH = "..//ESC-50-master"
-CSV_FILE_PATH = "..//ESC-50-master//meta//esc50.csv"  # path of csv file
-SAVE_PATH = "img_esc"
-samples_cnt = 2000
-class_cnt = 50
-imgH = 64
-imgW = 128
-
-TEST_10 = True
-
-if 0:
-    show_basic_data(BASE_PATH,useEsc50=True)
+from datasetsBase import ESC10
 
 
 
-#reading the csv file
-df = pd.read_csv(CSV_FILE_PATH)
-print(df)
-
-
-
-
-
-# Out of 50 classes we will be using 10 classes. dataframe has 
-# column "esc10" which contains 10 classes. So, we will be using that 10 classes only.
-# df_1 = df[df['fold'] == 1]
-
-# print(df_1)
-
-if TEST_10:
-    df.drop(df.index[df['esc10'] == False], inplace = True)
-    df = df.reset_index(drop=True)
-    samples_cnt = 400
-    class_cnt = 10
+def getEscTestData(X, Y, testIdx, dataset):
+    # folds are spillt in 400 in the db names order 
     
-    classes = df['category'].unique()
-    class_dict = {i:x for x,i in enumerate(classes)}
-    df['target'] = df['category'].map(class_dict)
+    x_train = np.zeros((1600, dataset.IMG_HEIGHT, dataset.IMG_WIDTH))
+    x_test =  np.zeros((400,  dataset.IMG_HEIGHT, dataset.IMG_WIDTH))
+    y_train = np.zeros((1600, 1))
+    y_test =  np.zeros((400, 1))
+    
+    i_test = 0
+    i_train = 0
+
+    for i in range(dataset.samplesCnt):
+        if dataset.df['fold'][i] == testIdx:
+            y_test[i_test] = Y[i]
+            x_test[i_test] = X[i]
+            i_test = i_test + 1
+        else:
+            y_train[i_train] = Y[i]
+            x_train[i_train] = X[i]  
+            i_train = i_train + 1
+
+    return x_train, x_test, y_train, y_test
 
 
-print("\n================================")
-print(df.head(6))
+def train_CNN(X, Y, db, test_portion = 0.20):
+    """ 
+    Trains CNN with givrn inputs and predifend image dimensions
 
-print(samples_cnt)
-print(class_cnt)
+    Args:
+        X : data inputs
+        Y : data outputs
+        test_portion (float, optional): What portion of data is used to validate. Defaults to 0.25.
+    """
+
+    for iTest in range(1, 2):
+        if 1: # random spilt 
+            x_train, x_test, y_train, y_test = sklearn.model_selection.train_test_split(X, Y, test_size=test_portion, random_state=7)
+        else:
+            x_train, x_test, y_train, y_test = getEscTestData(X, Y, testIdx=iTest, dataset=db)
+
+        print("Using fold nr: " + str (iTest))
+        x_train = x_train.reshape(x_train.shape[0], db.IMG_HEIGHT, db.IMG_WIDTH, 1)
+        x_test = x_test.reshape(x_test.shape[0], db.IMG_HEIGHT, db.IMG_WIDTH, 1)
+        
+        train_labels = keras.utils.to_categorical(y_train, num_classes=db.classesCnt)
+        test_labels = keras.utils.to_categorical(y_test, num_classes=db.classesCnt)
+        
+        model = get_cnn_minKernel_smallerL2_2(db.IMG_HEIGHT, db.IMG_WIDTH, db.classesCnt)
+        model.summary()
+
+        epochCnt = 400
+        epochCnt = 500
+        earlystopper = callbacks.EarlyStopping(patience=epochCnt*0.20, verbose=1, monitor='val_accuracy')
+        checkpointer = callbacks.ModelCheckpoint('models\\esc50.h5', verbose=1, monitor='val_accuracy', save_best_only=True)
+            
+        hist = model.fit(x_train, train_labels, batch_size=64, epochs=epochCnt, verbose=1, 
+            validation_data=(x_test, test_labels), callbacks = [earlystopper, checkpointer])
+
+        draw_model_results(hist.history, saveFig=True)
+        model = keras.models.load_model('models\\esc50.h5')
+        log_confusion_matrix(model, x_test, y_test)
 
 
-if not os.path.exists(SAVE_PATH):
-    save_wav_to_png(df, DATA_SAMPLES_CNT = samples_cnt, BASE_PATH=BASE_PATH, IMG_HEIGHT = imgH, IMG_WIDTH = imgW)
+
+if __name__ == "__main__":
+    print("Training for esc-50")
+
+    TEST_10 = False
+    SAVE_PATH = "img_esc"
+
+    visHelper = Visualise(urDb=ESC50())
+
+    if 0:
+        visHelper.show_basic_data(useEsc50=True)
+
+    print(visHelper.urDb.df)
+
+    esc10_db = ESC50()
+    print("\n================================")
+    print(esc10_db.df.head(6))
+
+    print(esc10_db.samplesCnt)
+    print(esc10_db.classesCnt)
 
 
-X_data, Y_data = load_spectograms(df, DATA_SAMPLES_CNT = samples_cnt, IMG_HEIGHT = imgH, IMG_WIDTH = imgW)
+    if not os.path.exists(SAVE_PATH):
+        # Functionality.save_wav_to_png(esc10_db.df, DATA_SAMPLES_CNT = esc10_db.df.samplesCnt, 
+        #     BASE_PATH=esc10_db.df.BASE_PATH, IMG_HEIGHT = esc10_db.df.height, IMG_WIDTH = esc10_db.df.width) PADARYT TAIP
+        save_wav_to_png(esc10_db.df, DATA_SAMPLES_CNT = esc10_db.samplesCnt, 
+            BASE_PATH=esc10_db.BASE_PATH, IMG_HEIGHT = esc10_db.IMG_HEIGHT, IMG_WIDTH = esc10_db.IMG_WIDTH)
 
-train_CNN(X_data, Y_data, IMG_HEIGHT=imgH, IMG_WIDTH=imgW, CLASSES_CNT=class_cnt, simpleModel = False)
+
+    X_data, Y_data = load_spectograms(esc10_db.df, DATA_SAMPLES_CNT = esc10_db.samplesCnt,
+    IMG_HEIGHT = esc10_db.IMG_HEIGHT, IMG_WIDTH = esc10_db.IMG_WIDTH)
+
+
+    imgH = esc10_db.IMG_HEIGHT
+    imgW = esc10_db.IMG_WIDTH
+    train_CNN(X_data, Y_data, db = esc10_db)
+
+
+

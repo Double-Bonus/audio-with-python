@@ -60,7 +60,8 @@ def train_kFold(use_chaged_speed):
     # 10-fold cross validation
     kfoldsCnt = 10
 
-    argVal = int(sys.argv[1]) 
+    # argVal = int(sys.argv[1]) 
+    argVal = 1
 
     for test_index in range(argVal-1, argVal):
     # for test_index in range(0, kfoldsCnt):
@@ -75,12 +76,12 @@ def train_kFold(use_chaged_speed):
         test_labels = keras.utils.to_categorical(y_test, num_classes=urbandDb.CLASSES_CNT)
         
         epochsCnt = 170
-        earlystopper = callbacks.EarlyStopping(patience=epochsCnt*0.3, verbose=1, monitor='val_accuracy')
+        earlystopper = callbacks.EarlyStopping(patience=epochsCnt*0.25, verbose=1, monitor='val_accuracy')
         checkpointer = callbacks.ModelCheckpoint('models\\k_urban_model.h5', verbose=1, monitor='val_accuracy', save_best_only=True)
 
         if 1: # use weight for class inbalandce
             clsWeight = urbandDb.calculate_class_imbalance(test_index)
-            hist = model.fit(x_train, train_labels, epochs = epochsCnt, batch_size = 64, verbose = 0, class_weight = clsWeight,
+            hist = model.fit(x_train, train_labels, epochs = epochsCnt, batch_size = 64, verbose = 1, class_weight = clsWeight,
                validation_data=(x_test, test_labels), callbacks = [earlystopper, checkpointer])
         else:
             hist = model.fit(x_train, train_labels, epochs = epochsCnt, batch_size = 64, verbose = 0,
@@ -90,7 +91,7 @@ def train_kFold(use_chaged_speed):
         pred = model.predict(x_test)
         y_pred = np.argmax(pred, axis=1) 
 
-        rounded_labels=np.argmax(test_labels, axis=1) # from one hot to label, right?
+        rounded_labels=np.argmax(test_labels, axis=1) # from one hot to label
         accuracies[test_index] = Functionality.calculate_accuracy(rounded_labels, y_pred)
         print("Temp k-Folds Accuracies: {0} ".format(accuracies))
  
@@ -100,9 +101,9 @@ def train_kFold(use_chaged_speed):
 
 
         
-        if 0: # initial results
+        if 1: # initial results
             if 1: # visulise
-                draw_model_results(hist)            
+                # draw_model_results(hist)            
                 log_confusion_matrix(model, x_test, y_test)
                 
             if 1: # Save history for latter analysis
@@ -178,12 +179,10 @@ def save_wav_to_png(foldName, use_Kfold = False):
         hop_length = 512           # number of samples per time-step in spectrogram
         n_mels = IMG_HEIGHT        # number of bins in spectrogram. Height of image
         time_steps = IMG_WIDTH - 1 # number of time-steps. Width of image (TODO FIX it add 1 px to width!!)
-        
-        
+              
         # sr * 4 = size!!!
         # 22050 * 4 = 88200
-        # y = librosa.util.utils.fix_length(y, 75000)  ## suppose it works????? It just adds white space!!!!
-        y = librosa.util.utils.fix_length(y, 88200)  ## suppose it works????? It just adds white space!!!!
+        y = librosa.util.utils.fix_length(y, 88200)
         # y, sr = pad_trunc(y, sr, 4000)
         
         start_sample = 0 # starting at beginning

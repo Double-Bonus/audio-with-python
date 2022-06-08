@@ -134,7 +134,7 @@ def load_spectograms(df, DATA_SAMPLES_CNT, IMG_HEIGHT, IMG_WIDTH):
 
 
 
-def train_CNN(X, Y, IMG_HEIGHT, IMG_WIDTH, CLASSES_CNT, simpleModel = False, test_portion = 0.25):
+def train_CNN(X, Y, IMG_HEIGHT, IMG_WIDTH, CLASSES_CNT, test_portion = 0.25):
     """ 
     Trains CNN with givrn inputs and predifend image dimensions
 
@@ -151,15 +151,21 @@ def train_CNN(X, Y, IMG_HEIGHT, IMG_WIDTH, CLASSES_CNT, simpleModel = False, tes
     train_labels = keras.utils.to_categorical(y_train, num_classes=CLASSES_CNT)
     test_labels = keras.utils.to_categorical(y_test, num_classes=CLASSES_CNT)
     
-    if simpleModel:
-        model = get_simple_cnn(IMG_HEIGHT, IMG_WIDTH, CLASSES_CNT)
-    else:
-        model = get_cnn(IMG_HEIGHT, IMG_WIDTH, CLASSES_CNT)
+    model = get_cnn_minKernel_smallerL2_2(IMG_HEIGHT, IMG_WIDTH, CLASSES_CNT)
     model.summary()
 
-    earlystopper = callbacks.EarlyStopping(patience=9, verbose=1, monitor='val_accuracy')
-    checkpointer = callbacks.ModelCheckpoint('models\\urban_model.h5', verbose=1, save_best_only=True)
-    
-    hist = model.fit(x_train, train_labels, batch_size=128, epochs=100, verbose=1, validation_data=(x_test, test_labels), callbacks = [earlystopper, checkpointer])
+    epochCnt = 400
+    earlystopper = callbacks.EarlyStopping(patience=epochCnt*0.2, verbose=1, monitor='val_accuracy')
+    checkpointer = callbacks.ModelCheckpoint('models\\esc10.h5', verbose=1, monitor='val_accuracy', save_best_only=True)
+        
+    hist = model.fit(x_train, train_labels, batch_size=32, epochs=epochCnt, verbose=1, 
+    validation_data=(x_test, test_labels), callbacks = [earlystopper, checkpointer])
     draw_model_results(hist)
     log_confusion_matrix(model, x_test, y_test) #TODO FIX: Note that here you use last model not the one saved!
+
+
+
+
+
+if __name__ == "__main__":
+    print("Runnnin functionaly")

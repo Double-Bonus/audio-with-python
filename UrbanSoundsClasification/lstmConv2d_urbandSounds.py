@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import sklearn.model_selection
 import cv2, librosa, os
+import sys
 
 from keras import metrics, callbacks
 
@@ -15,25 +16,21 @@ from datasetsBase import UrbandSound8k
 from functionality import Functionality
 
 
-BASE_PATH = "Urband_sounds//UrbanSound8K"
-DATA_SAMPLES_CNT = 8732
-CLASSES_CNT = 10
-FRAME_CNT = 8 # number of frames for lstm
-TEST_PORTION = 0.25
-IMG_HEIGHT = 128
-IMG_WIDTH = 160
-df = pd.read_csv("Urband_sounds//UrbanSound8K//metadata//UrbanSound8K.csv")
-
-if IMG_WIDTH % FRAME_CNT != 0:
-    print("ERROR: IMG_WIDTH must be divisible by FRAME_CNT")
-    exit()
-
 def spectrogram_image(y, sr, out_dir, out_name, hop_length, n_mels):
-    # use log-melspectrogram
-    mels = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=n_mels, n_fft=hop_length*2, hop_length=hop_length)
-    mels = np.log(mels + 1e-9) # add small number to avoid log(0)
-    # min-max scale to fit inside 8-bit range
-    img = Functionality.scale_minmax(mels, 0, 255).astype(np.uint8)
+    if 0: # use log-melspectrogram
+        mels = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=n_mels, n_fft=hop_length*2, hop_length=hop_length)
+        spec = np.log(mels + 1e-9) # add small number to avoid log(0)
+    else:
+        stft = librosa.stft(y=y, n_fft=256, hop_length=512)  # STFT of y
+        spec = librosa.amplitude_to_db(np.abs(stft), ref=np.max)
+        spec = np.delete(spec, -1, axis=0)
+        # for i in range(0, 13): # thera are clearlly easier ways!!!!
+        #     spec = np.delete(spec, -1, axis=1)
+
+
+
+
+    img = Functionality.scale_minmax(spec, 0, 255).astype(np.uint8)
     img = np.flip(img, axis=0) # put low frequencies at the bottom in image
     img = 255 - img            # invert. make black==more energy
 
@@ -120,7 +117,9 @@ def load_spectograms():
             class_name[i] = cla[i]  
     return img_data_array, class_name
 
-def train(x_train, y_train, x_test, y_test, urDb, epochs, verbose = False):
+def train(folds_cnt, X_data, Y_data, urDb, epochs, testIndx, verbose = False):
+
+    x_train, x_test, y_train, y_test = urbandDb.prepare_data_kFold_LSTM(testIndx, urbandDb.foldsCnt, folds_cnt, X_data, Y_data)
 
     # Customize and print x & y shapes
     x_train = x_train.reshape(x_train.shape[0], x_train.shape[1], x_train.shape[2], x_train.shape[3], 1)
@@ -150,8 +149,8 @@ def train(x_train, y_train, x_test, y_test, urDb, epochs, verbose = False):
     lstm.compile(loss=keras.losses.categorical_crossentropy, optimizer=keras.optimizers.Adam(), metrics = ['accuracy'])
 
     if 1: # use class wieghts
-        clsWeight = urDb.get_class_weights()
-        lstm.fit(x_train, y_train, batch_size=32, epochs=epochs, verbose=0, validation_data=(x_test, y_test), class_weight = clsWeight,
+        clsWeight = urDb.calculate_class_imbalance(testIndx)
+        lstm.fit(x_train, y_train, batch_size=64, epochs=epochs, verbose=0, validation_data=(x_test, y_test), class_weight = clsWeight,
             callbacks=[earlystopper, checkpointer])
     else:
         lstm.fit(x_train, y_train, batch_size=32, epochs=epochs, verbose=0, validation_data=(x_test, y_test), 
@@ -171,6 +170,21 @@ def train(x_train, y_train, x_test, y_test, urDb, epochs, verbose = False):
     
     
 ################################################################
+
+BASE_PATH = "Urband_sounds//UrbanSound8K"
+DATA_SAMPLES_CNT = 8732
+CLASSES_CNT = 10
+FRAME_CNT = 8 # number of frames for lstm
+TEST_PORTION = 0.25
+IMG_HEIGHT = 128
+IMG_WIDTH = 160
+df = pd.read_csv("Urband_sounds//UrbanSound8K//metadata//UrbanSound8K.csv")
+
+if IMG_WIDTH % FRAME_CNT != 0:
+    print("ERROR: IMG_WIDTH must be divisible by FRAME_CNT")
+    exit()
+
+
 if not os.path.exists("img_save_lstmCnn_f" + str(FRAME_CNT)):
     save_wav_to_png()
     
@@ -193,9 +207,11 @@ if 1: #kfold
 
     # 10-fold cross validation
     kfoldsCnt = 10
-    for test_index in range(0, kfoldsCnt):
-        x_train, x_test, y_train, y_test = urbandDb.prepare_data_kFold_LSTM(test_index, kfoldsCnt, folds_cnt, X_data, Y_data)
-        accuracies[test_index], f1[test_index], f1_w[test_index] = train(x_train, y_train, x_test, y_test, urbandDb, epochs=150, verbose=(0 == test_index))
+    # argVal = int(sys.argv[1]) 
+    argVal = 1
+    for test_index in range(argVal-1, argVal):
+        # 150 epoch nrml
+        accuracies[test_index], f1[test_index], f1_w[test_index] = train(folds_cnt, X_data, Y_data, urbandDb, epochs=150, testIndx = test_index, verbose=(0 == test_index))
         print("Temp k-Folds Accuracy: {0}".format(accuracies))
         print("Temp k-Folds F1 score: {0}".format(f1))
         print("Temp k-Folds F1 wirght score: {0}".format(f1_w))

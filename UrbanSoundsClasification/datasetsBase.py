@@ -10,7 +10,6 @@ import matplotlib.pyplot as plt
 
 # TODO move here all functions that uses df !!!!
 
-
 class UrbandSound8k:
     def __init__(self, height = 128, width = 128):
         self.IMG_HEIGHT = height
@@ -84,10 +83,6 @@ class UrbandSound8k:
         }
         return class_weight
 
-            
-        
-    
-
     def prepare_data_kFold(self, test_index, kfoldsCnt, folds_cnt, use_chaged_speed = False):
         print("Using " + str(test_index+1) + " fold out of: " + str(kfoldsCnt))
         x_train = np.zeros((self.DATA_SAMPLES_CNT - folds_cnt[test_index], self.IMG_HEIGHT, self.IMG_WIDTH))
@@ -154,15 +149,12 @@ class UrbandSound8k:
 
 
     # LSTM raw -------------------------------------------------------------------
-
     # def HARCODINTI???
     def calculate_number_of_classes(self):
         folds_cnt = np.zeros(self.CLASSES_CNT, dtype=int)
         for i in range(0, self.DATA_SAMPLES_CNT):
             folds_cnt[self.df["fold"][i] -1 ]  =  folds_cnt[self.df["fold"][i] -1] + 1
         return folds_cnt
-
-
 
     # fold count turetu buti klases viduje!
     def prepare_data_kFold_LSTM_1dCNN(self, test_index, kfoldsCnt, X_data, Y_data, audioLen = (4*22050)):
@@ -189,3 +181,50 @@ class UrbandSound8k:
         # x_test =  x_test.reshape( x_test.shape[0],   self.FRAME_CNT, self.IMG_HEIGHT, (self.IMG_WIDTH // self.FRAME_CNT), 1)
 
         return x_train, x_test, y_train, y_test
+
+
+class ESC50:
+    def __init__(self, height = 128, width = 173):
+        self.IMG_HEIGHT = height
+        self.IMG_WIDTH = width
+        self.BASE_PATH = "..//ESC-50"
+        # self.samplesCnt = 2000
+        self.samplesCnt = 2060
+        self.classesCnt = 50
+        self.df = pd.read_csv(self.BASE_PATH + "//meta//esc50.csv")
+
+class ESC10:
+    def __init__(self, height = 128, width = 216):
+        self.IMG_HEIGHT = height
+        self.IMG_WIDTH = width
+        self.BASE_PATH = "..//ESC-50"
+        self.samplesCnt = 400
+        self.classesCnt = 10
+
+        self.df = pd.read_csv(self.BASE_PATH + "//meta//esc50.csv")
+        self.df.drop(self.df.index[self.df['esc10'] == False], inplace = True)
+        self.df = self.df.reset_index(drop=True)
+
+        # rename 'target' collum from 0-49 -> 0-9
+        self.df['target'][self.df['target'] == 10] = 2
+        self.df['target'][self.df['target'] == 11] = 3
+        self.df['target'][self.df['target'] == 12] = 4
+        self.df['target'][self.df['target'] == 20] = 5
+        self.df['target'][self.df['target'] == 21] = 6
+        self.df['target'][self.df['target'] == 38] = 7
+        self.df['target'][self.df['target'] == 40] = 8
+        self.df['target'][self.df['target'] == 41] = 9
+
+"""""        
+0	dog	TRUE
+1	rooster	TRUE
+10	rain	TRUE
+11	sea_waves	TRUE
+12	crackling_fire	TRUE
+
+20	crying_baby	TRUE
+21	sneezing	TRUE
+38	clock_tick	TRUE
+40	helicopter	TRUE
+41	chainsaw	TRUE
+"""""        

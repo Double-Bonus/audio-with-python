@@ -201,7 +201,6 @@ def get_lstm(x_train, class_cnt, modelType):
         lstm.add(TimeDistributed(cnn, input_shape=(x_train.shape[1], x_train.shape[2], x_train.shape[3], x_train.shape[4])))
         lstm.add(LSTM(16, dropout=0.25, recurrent_dropout=0.1))
 
-
     elif modelType == 11: # ~55 acc,  relu i LSTM layer activation
         # Layer 1
         cnn.add(Conv2D(filters=36, kernel_size=4, kernel_regularizer=regularizers.l2(1e-3), activation='relu', input_shape = (x_train.shape[2], x_train.shape[3], x_train.shape[4])))
@@ -244,7 +243,8 @@ def get_lstm(x_train, class_cnt, modelType):
     elif modelType == 13: # 75 acc
         # recurent drop 0.2 duoda geresni rezultata
         # Layer 1
-        cnn.add(Conv2D(filters=64, kernel_size=4, kernel_regularizer=regularizers.l2(1e-3), activation='relu', input_shape = (x_train.shape[2], x_train.shape[3], x_train.shape[4])))
+        cnn.add(Conv2D(filters=64, kernel_size=4, kernel_regularizer=regularizers.l2(1e-3), activation='relu', 
+            input_shape = (x_train.shape[2], x_train.shape[3], x_train.shape[4])))
         cnn.add(MaxPooling2D((3, 2),strides=3 ))
         cnn.add(Dropout(0.25))
 

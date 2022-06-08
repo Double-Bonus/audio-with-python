@@ -6,9 +6,12 @@ import numpy as np
 import itertools
 import librosa
 import librosa.display
+from datetime import datetime
+
 
 
 from datasetsBase import UrbandSound8k
+from datasetsBase import ESC50
 
 # ----------------------------- Private Defines ---------------------------------
 
@@ -22,9 +25,9 @@ def _plot_confusion_matrix(cm, class_names):
       cm (array, shape = [n, n]): a confusion matrix of integer classes
       class_names (array, shape = [n]): String names of the integer classes
     """
-    figure = plt.figure(figsize=(8, 8))
+    figure = plt.figure(figsize=(30,30))
     plt.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
-    plt.title("Confusion matrix")
+    plt.title("Sumaišties matrica")
     plt.colorbar()
     tick_marks = np.arange(len(class_names))
     plt.xticks(tick_marks, class_names, rotation=45)
@@ -36,14 +39,13 @@ def _plot_confusion_matrix(cm, class_names):
 
     # Use white text if squares are dark; otherwise black.
     threshold = cm.max() / 2.
-    # TODO why need itertools???
     for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
         color = "white" if cm[i, j] > threshold else "black"
         plt.text(j, i, labels[i, j], horizontalalignment="center", color=color)
 
     plt.tight_layout()
-    plt.ylabel('True label')
-    plt.xlabel('Predicted label')
+    plt.ylabel('Tikroji klasė')
+    plt.xlabel('Prognozė')
     plt.savefig('ConfusionMatrix.png')
 
 
@@ -57,16 +59,57 @@ def log_confusion_matrix(model, test_images, test_labels):
 
     # Hardcoded for now TODO FIX
     class_names = [
-        'air_conditioner',
-        'car_horn',
-        'children_playing',
-        'dog_bark',
-        'drilling',
-        'engine_idling',
-        'gun_shot',
-        'jackhammer',
-        'siren',
-        'street_music']
+    "Šuo",
+    "Gaidys",
+    "Kiaulė",
+    "Karvė",
+    "Varlė",
+    "Katė",
+    "Višta",
+    "Vabzdžiai",
+    "Avys",
+    "Varna",
+    "Lietus",
+    "Jūros bangos",
+    "Ugnies spragsėjimas",
+    "Svirpliai",
+    "Paukščių čiulbėjimas",
+    "Vandens lašai",
+    "Vėjas",
+    "Vandens pylimas",
+    "Tualeto nuleidimas",
+    "Perkūnija",
+    "Kūdikio verkimas",
+    "Čiaudėjimas",
+    "Plojimai",
+    "Kvėpavimas",
+    "Kosėjimas",
+    "Žingsniai",
+    "Juokas",
+    "Dantų valymas",
+    "Knarkimas",
+    "Gerimas",
+    "Durų beldimas",
+    "Komp. pelės paspaudimas",
+    "Rašymas klaviatūra",
+    "Durų girgždėjimas",
+    "Skardinės atidarymas",
+    "Skalbimo mašina",
+    "Dulkių siurblys",
+    "Laikrodžio žadintuvas",
+    "Laikrodžio tiksėjimas",
+    "Stiklo dūžimas",
+    "Sraigtasparnis",
+    "Grandininis pjūklas",
+    "Sirena",
+    "Automobilio signalas",
+    "Variklis",
+    "Traukinys",
+    "Bažnyčios varpai",
+    "Lėktuvas",
+    "Fejerverkai",
+    "Rankinis pjūklas",
+    ]
 
     # Calculate the confusion matrix.
     cm = sklearn.metrics.confusion_matrix(test_labels, test_pred)
@@ -74,21 +117,33 @@ def log_confusion_matrix(model, test_images, test_labels):
     _plot_confusion_matrix(cm, class_names=class_names)
 
 
-def draw_model_results(model_history):
+def draw_model_results(model_history, saveFig = False):
+    plt.figure(figsize=(28, 16))
+
     plt.subplot(121)
-    plt.plot(model_history.history['accuracy'], 'r')
-    plt.plot(model_history.history['val_accuracy'], 'b')
-    plt.ylabel('Tikslumas, r - train, b - val')
+    plt.plot(model_history['accuracy'], 'r',     label="Treniravimo")
+    plt.plot(model_history['val_accuracy'], 'b', label="Testavimo")
+    plt.ylabel('Tikslumas')
     plt.xlabel('Epocha')
+    plt.legend(loc="lower right")
     plt.grid(b=True)
 
     plt.subplot(122)
-    plt.plot(model_history.history['loss'], 'r')
-    plt.plot(model_history.history['val_loss'], 'b')
-    plt.ylabel('Nuostolis (angl. loss), r - train, b - val')
+    plt.plot(model_history['loss'], 'r',     label="Treniravimo")
+    plt.plot(model_history['val_loss'], 'b', label="Testavimo")
+    plt.ylabel('Nuostolis')
     plt.xlabel('Epocha')
     plt.grid(b=True)
-    plt.show()
+    plt.legend(loc="upper right")
+
+    if saveFig:
+        now = datetime.now() # current date and time
+        date_time = now.strftime("%m-%d-%H_%M")
+        plt.savefig(date_time)
+    else:
+        plt.show()
+
+
 
 
 # ------------------------ CLASS ----------------------
@@ -281,37 +336,41 @@ class Visualise:
 
     def plot_history_results(self, history):
         plt.subplot(121)
-        plt.plot(history['accuracy'], 'r')
-        plt.plot(history['val_accuracy'], 'b')
-        plt.ylabel('accuracy, r - train, b - val')
-        plt.xlabel('epoch')
+        plt.plot(history['accuracy'], 'r',     label="Treniravimo")
+        plt.plot(history['val_accuracy'], 'b', label="Testavimo")
+        plt.ylabel('Tikslumas')
+        plt.xlabel('Epocha')
+        plt.legend(loc="lower right")
         plt.grid(b=True)
 
         plt.subplot(122)
-        plt.plot(history['loss'], 'r')
-        plt.plot(history['val_loss'], 'b')
-        plt.ylabel('Loss, r - train, b - val')
-        plt.xlabel('epoch')
+        plt.plot(history['loss'], 'r',     label="Treniravimo")
+        plt.plot(history['val_loss'], 'b', label="Testavimo")
+        plt.ylabel('Nuostolis')
+        plt.xlabel('Epocha')
         plt.grid(b=True)
+        plt.legend(loc="upper right")
         plt.show()
 
     def plot_to_compare_models(self, history_1, history_2):
         plt.subplot(121)
-        plt.plot(history_1['accuracy'], 'r')
-        plt.plot(history_2['accuracy'], 'r--')
-        plt.plot(history_1['val_accuracy'], 'b')
-        plt.plot(history_2['val_accuracy'], 'g')
-        plt.ylabel('Tikslumas, raudona - treniravimo, žalia/mėlyna - testavimo')
+        plt.plot(history_1['accuracy'], 'r',     label="Treniravimo, 1 modelis")
+        plt.plot(history_2['accuracy'], 'r--',   label="Treniravimo, 2 modelis")
+        plt.plot(history_1['val_accuracy'], 'b', label="Testavimo, 1 modelis")
+        plt.plot(history_2['val_accuracy'], 'g', label="Testavimo, 2 modelis")
+        plt.legend(loc="lower right")
+        plt.ylabel('Tikslumas')
         plt.xlabel('Epocha')
         plt.grid(b=True)
 
         plt.subplot(122)
-        plt.plot(history_1['loss'], 'r')
-        plt.plot(history_1['val_loss'], 'b')
-        plt.plot(history_2['loss'], 'r--')
-        plt.plot(history_2['val_loss'], 'g')
-        plt.ylabel('Nuostolis (angl. loss), raudona - treniravimo, žalia/mėlyna - testavimo')
+        plt.plot(history_1['loss'], 'r',     label="Treniravimo, 1 modelis")
+        plt.plot(history_2['loss'], 'r--',   label="Treniravimo, 2 modelis")
+        plt.plot(history_1['val_loss'], 'b', label="Testavimo, 1 modelis")
+        plt.plot(history_2['val_loss'], 'g', label="Testavimo, 2 modelis")
+        plt.ylabel('Nuostolis')
         plt.xlabel('Epocha')
+        plt.legend(loc="upper right")
         plt.grid(b=True)
         plt.show()    
 
@@ -319,19 +378,26 @@ def main():
 
     print("Hello from Visualise!")
     vis = Visualise()
-    vis.plot_basic_spectrograms()
+    # vis.plot_basic_spectrograms()
     # vis.plot_wave_from_audio()
     # vis.plot_mel_spectrograms()
     # vis.plot_mffc()
 
 
-    # hist=np.load('overfit_model/my_history_overfit.npy',allow_pickle='TRUE').item()
-    # # vis.plot_history_results(hist)
+    if 0:
+        hist=np.load('overfit_model/my_history_overfit.npy',allow_pickle='TRUE').item()
+        # vis.plot_history_results(hist)
 
-    # hist2=np.load('overfit_model/first_modGood-noSmoot/my_history.npy',allow_pickle='TRUE').item()
-    # # vis.plot_history_results(hist2)
+        hist2=np.load('overfit_model/first_modGood-noSmoot/my_history.npy',allow_pickle='TRUE').item()
+        # vis.plot_history_results(hist2)
 
-    # vis.plot_to_compare_models(hist, hist2)
+        vis.plot_to_compare_models(hist, hist2)
+
+
+
+    bathMod = np.load('overfit_model/batchNorm_smaller/my_history.npy',allow_pickle='TRUE').item()
+    vis.plot_history_results(bathMod)
+
 
 
     print("End from Visualise!")

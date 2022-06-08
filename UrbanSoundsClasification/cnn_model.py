@@ -7,10 +7,12 @@ from tensorflow.keras.layers import Conv2D, MaxPooling2D, ZeroPadding2D, GlobalA
 from tensorflow.keras.layers import Dropout, BatchNormalization, SpatialDropout2D
 from tensorflow.keras.layers import LeakyReLU, ELU
 from tensorflow.keras import regularizers
+from tensorflow.keras.optimizers import SGD
 import tensorflow_addons as tfa
 
 # Acc precentagies here show acc of testing with 1-st fold and trainging with other 9 (2-10)
 #####################################################
+
 
 
 ################### testing
@@ -135,9 +137,189 @@ def get_cnn_minKernelReg778(img_h, img_w, class_cnt):
     
     # model.compile(optimizer='adam', loss=keras.losses.CategoricalCrossentropy(label_smoothing=0.1), metrics=['categorical_accuracy'])
     # model.compile(optimizer='adam', loss=keras.losses.CategoricalCrossentropy(label_smoothing=0.1), metrics=['accuracy'])
-    model.compile(optimizer='adam', loss=keras.losses.CategoricalCrossentropy(), metrics=['accuracy'])
+    # opt = SGD(lr=0.0001, momentum=0.9, decay=0.001)
+    opt = 'adam'
+    model.compile(optimizer=opt, loss=keras.losses.CategoricalCrossentropy(), metrics=['accuracy'])
     # model.compile(optimizer='adam', loss=bce_dice_loss, metrics=['accuracy'])
     return model
+
+
+# acc ~78-80 1 fold
+def get_cnn_minKernel_MoreConv(img_h, img_w, class_cnt):
+    model = Sequential()
+    
+    alpha = 0.01
+
+    # Layer 1
+    model.add(Conv2D(filters=64, kernel_size=5, kernel_regularizer=regularizers.l2(1e-4), input_shape = (img_h, img_w, 1)))
+    model.add(LeakyReLU(alpha))
+    model.add(Conv2D(filters=64, kernel_size=5, kernel_regularizer=regularizers.l2(1e-4), padding='same' ))
+    model.add(LeakyReLU(alpha))
+    model.add(MaxPooling2D((3, 3), strides=3))
+    model.add(Dropout(0.1))
+
+    # Layer 2
+    model.add(Conv2D(filters=96, kernel_size=4, kernel_regularizer=regularizers.l2(1e-4), padding='same' ))
+    model.add(LeakyReLU(alpha))
+    model.add(Conv2D(filters=96, kernel_size=4, kernel_regularizer=regularizers.l2(1e-4), padding='same' ))
+    model.add(LeakyReLU(alpha))
+    model.add(MaxPooling2D((2, 2), strides=2 ))
+    model.add(Dropout(0.25))
+
+
+    # Layer 3
+    model.add(Conv2D(filters=128, kernel_size=3, kernel_regularizer=regularizers.l2(1e-4),padding='same' ))    
+    model.add(LeakyReLU(alpha))
+    model.add(Conv2D(filters=128, kernel_size=3, kernel_regularizer=regularizers.l2(1e-4),padding='same' ))    
+    model.add(LeakyReLU(alpha))
+    model.add(MaxPooling2D((2, 2), strides=2 ))
+    model.add(Dropout(0.1))
+
+    # Flatter - same, right?
+    model.add(GlobalAveragePooling2D())
+    
+    # Layer 4
+    model.add(Dense(128))
+    model.add(LeakyReLU(alpha))
+    model.add(Dropout(0.5))
+
+    model.add(Dense(class_cnt, activation = "softmax"))
+    
+    opt = 'adam'
+    model.compile(optimizer=opt, loss=keras.losses.CategoricalCrossentropy(), metrics=['accuracy'])
+    return model
+
+
+def get_cnn_minKernel_smallerL2(img_h, img_w, class_cnt):
+    model = Sequential()
+    
+    alpha = 0.01
+
+    # Layer 1
+    model.add(Conv2D(filters=64, kernel_size=5, kernel_regularizer=regularizers.l2(1e-4), input_shape = (img_h, img_w, 1)))
+    # model.add(Conv2D(filters=64, kernel_size=5, kernel_regularizer=regularizers.l2(1e-3), input_shape = (img_h, img_w, 1)))
+    model.add(LeakyReLU(alpha))
+    model.add(MaxPooling2D((3, 3), strides=3))
+    model.add(Dropout(0.1))
+
+    # Layer 2
+    model.add(Conv2D(filters=128, kernel_size=4, kernel_regularizer=regularizers.l2(1e-4), padding='valid' ))
+    # model.add(Conv2D(filters=128, kernel_size=4, kernel_regularizer=regularizers.l2(1e-3), padding='valid' ))
+    model.add(LeakyReLU(alpha))
+    model.add(MaxPooling2D((2, 2), strides=2 ))
+    model.add(Dropout(0.25))
+
+
+    # Layer 3
+    model.add(Conv2D(filters=256, kernel_size=3, kernel_regularizer=regularizers.l2(1e-4),padding='valid' ))    
+    # model.add(Conv2D(filters=256, kernel_size=3, kernel_regularizer=regularizers.l2(1e-3),padding='valid' ))    
+    model.add(LeakyReLU(alpha))
+    model.add(MaxPooling2D((2, 2), strides=2 ))
+    model.add(Dropout(0.5))
+
+    # Flatter - same, right?
+    model.add(GlobalAveragePooling2D())
+    
+    # Layer 4
+    model.add(Dense(128))
+    model.add(LeakyReLU(alpha))
+
+    model.add(Dropout(0.5))
+
+    model.add(Dense(class_cnt, activation = "softmax"))
+    
+    opt = 'adam'
+    model.compile(optimizer=opt, loss=keras.losses.CategoricalCrossentropy(), metrics=['accuracy'])
+    return model
+
+def get_cnn_minKernel_smallerL2_2(img_h, img_w, class_cnt):
+    model = Sequential()
+    
+    alpha = 0.01
+
+    # Layer 1
+    model.add(Conv2D(filters=64, kernel_size=5, kernel_regularizer=regularizers.l2(1e-4), input_shape = (img_h, img_w, 1)))
+    model.add(LeakyReLU(alpha))
+    model.add(MaxPooling2D((3, 3), strides=3))
+    model.add(Dropout(0.1))
+
+    # Layer 2
+    model.add(Conv2D(filters=128, kernel_size=4, kernel_regularizer=regularizers.l2(1e-4), padding='valid' ))
+    model.add(LeakyReLU(alpha))
+    model.add(MaxPooling2D((2, 2), strides=2 ))
+    model.add(Dropout(0.25))
+
+
+    # Layer 3
+    model.add(Conv2D(filters=196, kernel_size=3, kernel_regularizer=regularizers.l2(1e-4),padding='valid' ))    
+    model.add(LeakyReLU(alpha))
+    model.add(MaxPooling2D((2, 2), strides=2 ))
+    model.add(Dropout(0.5))
+
+    model.add(GlobalAveragePooling2D())
+    
+    # Layer 4
+    model.add(Dense(128))
+    model.add(LeakyReLU(alpha))
+    model.add(Dropout(0.5))
+
+    model.add(Dense(class_cnt, activation = "softmax"))
+    
+    opt = 'adam'
+    model.compile(optimizer=opt, loss=keras.losses.CategoricalCrossentropy(label_smoothing=0.1), metrics=['accuracy'])
+    # model.compile(optimizer=opt, loss=keras.losses.CategoricalCrossentropy(), metrics=['accuracy'])
+    return model
+
+
+
+def get_cnn_minKernel_smallerL2_3(img_h, img_w, class_cnt):
+    model = Sequential()
+    
+    alpha = 0.01
+
+    # Layer 1
+    model.add(Conv2D(filters=64, kernel_size=5, kernel_regularizer=regularizers.l2(1e-4), input_shape = (img_h, img_w, 1)))
+    model.add(LeakyReLU(alpha))
+    model.add(MaxPooling2D((3, 3), strides=3))
+    model.add(Dropout(0.1))
+
+    # Layer 2
+    model.add(Conv2D(filters=96, kernel_size=4, kernel_regularizer=regularizers.l2(1e-4), padding='valid' ))
+    model.add(LeakyReLU(alpha))
+    model.add(MaxPooling2D((2, 2), strides=2 ))
+    model.add(Dropout(0.25))
+
+
+    # Layer 3
+    model.add(Conv2D(filters=128, kernel_size=3, kernel_regularizer=regularizers.l2(1e-4),padding='valid' ))    
+    model.add(LeakyReLU(alpha))
+    model.add(MaxPooling2D((2, 2), strides=2 ))
+    model.add(Dropout(0.5))
+
+    model.add(GlobalAveragePooling2D())
+    
+    # Layer 4
+    model.add(Dense(128))
+    model.add(LeakyReLU(alpha))
+    model.add(BatchNormalization())
+    model.add(Dropout(0.5))
+
+    model.add(Dense(class_cnt, activation = "softmax"))
+    
+    opt = 'adam'
+    model.compile(optimizer=opt, loss=keras.losses.CategoricalCrossentropy(label_smoothing=0.1), metrics=['accuracy'])
+    # model.compile(optimizer=opt, loss=keras.losses.CategoricalCrossentropy(), metrics=['accuracy'])
+    return model
+
+
+
+
+
+
+
+
+
+
 
 ###########################################################################
 
